@@ -16,9 +16,9 @@ const DEFAULT_USERS = [
 ];
 
 const INITIAL_ELECTORES = [
-  { id: 1, nombre: "ANA GÓMEZ TORRES", cedula: "1098765432", telefono: "3001234567", fechaNacimiento: "1985-03-15", barrio: "LA ESTRELLA", comunaCorregimiento: "COMUNA 1", genero: "FEMENINO", lider: "CARLOS PÉREZ", puestoVotacion: "COLEGIO SAN LUIS", mesaVotacion: "3", intencion: "Seguro", observaciones: "", lat: 4.4389, lng: -75.2322, fecha: "2024-01-10 09:30", usuarioRegistro: "carlos" },
+  { id: 1, nombre: "ANA GÓMEZ TORRES", cedula: "1098765432", telefono: "3001234567", fechaNacimiento: "1985-03-15", barrio: "LA ESTRELLA", comunaCorregimiento: "COMUNA 1", genero: "FEMENINO", lider: "CARLOS PÉREZ", puestoVotacion: "COLEGIO SAN LUIS", mesaVotacion: "3", intencion: "Si apoya", observaciones: "", lat: 4.4389, lng: -75.2322, fecha: "2024-01-10 09:30", usuarioRegistro: "carlos" },
   { id: 2, nombre: "PEDRO MARTÍNEZ", cedula: "1087654321", telefono: "3109876543", fechaNacimiento: "1978-07-22", barrio: "EL VERGEL", comunaCorregimiento: "CORREGIMIENTO SUR", genero: "MASCULINO", lider: "CARLOS PÉREZ", puestoVotacion: "ESCUELA EL CARMEN", mesaVotacion: "7", intencion: "Indeciso", observaciones: "SEGUIMIENTO PENDIENTE", lat: 4.4401, lng: -75.2301, fecha: "2024-01-11 11:15", usuarioRegistro: "carlos" },
-  { id: 3, nombre: "LUCÍA HERRERA DÍAZ", cedula: "1076543210", telefono: "3201122334", fechaNacimiento: "1992-11-08", barrio: "CALAMBEO", comunaCorregimiento: "COMUNA 8", genero: "FEMENINO", lider: "MARÍA LÓPEZ", puestoVotacion: "INSTITUTO TÉCNICO", mesaVotacion: "12", intencion: "Seguro", observaciones: "", lat: 4.4450, lng: -75.2280, fecha: "2024-01-12 14:00", usuarioRegistro: "maria" },
+  { id: 3, nombre: "LUCÍA HERRERA DÍAZ", cedula: "1076543210", telefono: "3201122334", fechaNacimiento: "1992-11-08", barrio: "CALAMBEO", comunaCorregimiento: "COMUNA 8", genero: "FEMENINO", lider: "MARÍA LÓPEZ", puestoVotacion: "INSTITUTO TÉCNICO", mesaVotacion: "12", intencion: "Si apoya", observaciones: "", lat: 4.4450, lng: -75.2280, fecha: "2024-01-12 14:00", usuarioRegistro: "maria" },
 ];
 
 const getUsers = () => { try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : DEFAULT_USERS; } catch { return DEFAULT_USERS; } };
@@ -42,7 +42,7 @@ const styles = {
   input: { width: "100%", border: `1.5px solid ${COLORS.borde}`, borderRadius: 12, padding: "12px 14px", fontSize: 14, color: COLORS.texto, background: COLORS.gris, boxSizing: "border-box", marginBottom: 10, outline: "none", textTransform: "uppercase" },
   inputNormal: { width: "100%", border: `1.5px solid ${COLORS.borde}`, borderRadius: 12, padding: "12px 14px", fontSize: 14, color: COLORS.texto, background: COLORS.gris, boxSizing: "border-box", marginBottom: 10, outline: "none" },
   label: { fontSize: 12, fontWeight: 700, color: COLORS.lila, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4, display: "block" },
-  badge: (color) => ({ background: color === "Seguro" ? "#D1FAE5" : color === "Indeciso" ? "#FEF3C7" : "#FEE2E2", color: color === "Seguro" ? "#065F46" : color === "Indeciso" ? "#92400E" : "#991B1B", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700 }),
+  badge: (color) => ({ background: color === "Si apoya" ? "#D1FAE5" : color === "Indeciso" ? "#FEF3C7" : "#FEE2E2", color: color === "Si apoya" ? "#065F46" : color === "Indeciso" ? "#92400E" : "#991B1B", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700 }),
   tab: (active) => ({ flex: 1, padding: "10px 4px", background: active ? COLORS.lila : "transparent", color: active ? COLORS.blanco : COLORS.textoSec, border: "none", borderRadius: 10, fontSize: 12, fontWeight: active ? 700 : 500, cursor: "pointer", transition: "all 0.2s" }),
   navBtn: (active) => ({ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: "8px 4px", background: "none", border: "none", color: active ? COLORS.lila : COLORS.textoSec, cursor: "pointer", fontSize: 10, fontWeight: active ? 700 : 500 }),
 };
@@ -172,8 +172,8 @@ function InicioScreen({ currentUser, electores, onNavigate }) {
             <div style={{ fontSize: 11, color: COLORS.lila, fontWeight: 600 }}>{currentUser.role === "admin" ? "TOTAL REGISTROS" : "MIS REGISTROS"}</div>
           </div>
           <div style={{ background: COLORS.naranjaLight, borderRadius: 14, padding: "14px", textAlign: "center" }}>
-            <div style={{ fontSize: 26, fontWeight: 900, color: COLORS.naranja }}>{electores.filter(e => e.intencion === "Seguro").length}</div>
-            <div style={{ fontSize: 11, color: COLORS.naranja, fontWeight: 600 }}>VOTOS SEGUROS</div>
+            <div style={{ fontSize: 26, fontWeight: 900, color: COLORS.naranja }}>{electores.filter(e => e.intencion === "Si apoya").length}</div>
+            <div style={{ fontSize: 11, color: COLORS.naranja, fontWeight: 600 }}>VOTOS Si apoyaS</div>
           </div>
         </div>
         <button style={styles.btnPrimary} onClick={() => onNavigate("registro")}><span style={{ fontSize: 20 }}>📝</span> Registrar Elector</button>
@@ -246,7 +246,7 @@ function RegistroScreen({ currentUser, electores, onSave, onBack }) {
           { label: "Teléfono", field: "telefono", placeholder: "EJ: 3001234567", type: "tel" },
           { label: "Fecha de Nacimiento", field: "fechaNacimiento", type: "date" },
           { label: "Barrio / Vereda", field: "barrio", placeholder: "EJ: LA ESTRELLA" },
-          { label: "Comuna / Corregimiento", field: "comunaCorregimiento", placeholder: "EJ: COMUNA 1" },
+          
           { label: "Líder que Refiere", field: "lider", placeholder: "NOMBRE DEL LÍDER" },
           { label: "Puesto de Votación", field: "puestoVotacion", placeholder: "EJ: COLEGIO SAN LUIS" },
           { label: "Mesa de Votación", field: "mesaVotacion", placeholder: "EJ: 3", type: "tel" },
@@ -259,6 +259,25 @@ function RegistroScreen({ currentUser, electores, onSave, onBack }) {
           </div>
         ))}
         <div>
+          <label style={styles.label}>Comuna / Corregimiento</label>
+<select style={{ ...styles.input, borderColor: errors.comunaCorregimiento ? "#EF4444" : COLORS.borde }} value={form.comunaCorregimiento} onChange={e => update("comunaCorregimiento", e.target.value)}>
+  <option value="">Seleccionar...</option>
+  <option>COMUNA 1</option>
+  <option>COMUNA 2</option>
+  <option>COMUNA 3</option>
+  <option>COMUNA 4</option>
+  <option>COMUNA 5</option>
+  <option>COMUNA 6</option>
+  <option>COMUNA 7</option>
+  <option>COMUNA 8</option>
+  <option>COMUNA 9</option>
+  <option>COMUNA 10</option>
+  <option>COMUNA 11</option>
+  <option>COMUNA 12</option>
+  <option>COMUNA 13</option>
+  <option>ZONA RURAL</option>
+</select>
+{errors.comunaCorregimiento && <p style={{ color: "#EF4444", fontSize: 12, marginTop: -8, marginBottom: 8 }}>Campo requerido</p>}
           <label style={styles.label}>Género</label>
           <select style={{ ...styles.input, borderColor: errors.genero ? "#EF4444" : COLORS.borde }} value={form.genero} onChange={e => update("genero", e.target.value)}>
             <option value="">Seleccionar...</option>
@@ -267,7 +286,7 @@ function RegistroScreen({ currentUser, electores, onSave, onBack }) {
         </div>
         <div>
           <label style={{ ...styles.label, marginBottom: 8 }}>Intención de Voto *</label>
-          <RadioGroup value={form.intencion} onChange={v => update("intencion", v)} options={["Seguro", "Indeciso", "No apoya"]} />
+          <RadioGroup value={form.intencion} onChange={v => update("intencion", v)} options={["Si apoya", "Indeciso", "No apoya"]} />
           {errors.intencion && <p style={{ color: "#EF4444", fontSize: 12, marginTop: -6, marginBottom: 8 }}>Selecciona una opción</p>}
         </div>
         <div>
@@ -354,7 +373,7 @@ function EditarElectorScreen({ elector, onBack, onSave }) {
         </div>
         <div>
           <label style={{ ...styles.label, marginBottom: 8 }}>Intención de Voto</label>
-          <RadioGroup value={form.intencion} onChange={v => update("intencion", v)} options={["Seguro", "Indeciso", "No apoya"]} />
+          <RadioGroup value={form.intencion} onChange={v => update("intencion", v)} options={["Si apoya", "Indeciso", "No apoya"]} />
         </div>
         <div>
           <label style={styles.label}>Observaciones</label>
@@ -465,7 +484,7 @@ function RegistrosScreen({ currentUser, electores, onBack, onDelete, onEdit }) {
       <div style={{ ...styles.content, paddingTop: 12 }}>
         <input style={styles.inputNormal} placeholder="🔍 Buscar por nombre, cédula o barrio..." value={search} onChange={e => setSearch(e.target.value)} />
         <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto", paddingBottom: 4 }}>
-          {["Todos", "Seguro", "Indeciso", "No apoya"].map(op => (
+          {["Todos", "Si apoya", "Indeciso", "No apoya"].map(op => (
             <button key={op} onClick={() => setFilterIntencion(op)} style={{ padding: "6px 14px", borderRadius: 20, border: `1.5px solid ${filterIntencion === op ? COLORS.lila : COLORS.borde}`, background: filterIntencion === op ? COLORS.lila : COLORS.blanco, color: filterIntencion === op ? COLORS.blanco : COLORS.textoSec, fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
               {op}
             </button>
@@ -552,7 +571,7 @@ function AdminScreen({ currentUser, electores, onBack }) {
   const [editForm, setEditForm] = useState({});
   const [editError, setEditError] = useState("");
 
-  const totalSeguro = electores.filter(e => e.intencion === "Seguro").length;
+  const totalSi apoya = electores.filter(e => e.intencion === "Si apoya").length;
   const totalIndeciso = electores.filter(e => e.intencion === "Indeciso").length;
   const totalNoApoya = electores.filter(e => e.intencion === "No apoya").length;
   const porLider = users.filter(u => u.role === "lider").map(u => ({ nombre: u.nombre, count: electores.filter(e => e.usuarioRegistro === u.username).length }));
@@ -639,7 +658,7 @@ function AdminScreen({ currentUser, electores, onBack }) {
         {tab === "stats" && (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
-              {[["TOTAL", electores.length, COLORS.lilaLight, COLORS.lilaDark], ["SEGUROS", totalSeguro, "#D1FAE5", "#065F46"], ["INDECISOS", totalIndeciso, "#FEF3C7", "#92400E"], ["NO APOYAN", totalNoApoya, "#FEE2E2", "#991B1B"]].map(([label, val, bg, color]) => (
+              {[["TOTAL", electores.length, COLORS.lilaLight, COLORS.lilaDark], ["Si apoyaS", totalSi apoya, "#D1FAE5", "#065F46"], ["INDECISOS", totalIndeciso, "#FEF3C7", "#92400E"], ["NO APOYAN", totalNoApoya, "#FEE2E2", "#991B1B"]].map(([label, val, bg, color]) => (
                 <div key={label} style={{ background: bg, borderRadius: 14, padding: 14, textAlign: "center" }}>
                   <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color }}>{label}</p>
                   <p style={{ margin: "4px 0 0", fontSize: 28, fontWeight: 900, color }}>{val}</p>
@@ -727,7 +746,7 @@ function AdminScreen({ currentUser, electores, onBack }) {
                   {electores.map(e => {
                     const x = ((e.lng - (-75.24)) / 0.02) * 280;
                     const y = ((4.445 - e.lat) / 0.015) * 180;
-                    const colors = { "Seguro": "#16A34A", "Indeciso": "#D97706", "No apoya": "#DC2626" };
+                    const colors = { "Si apoya": "#16A34A", "Indeciso": "#D97706", "No apoya": "#DC2626" };
                     return <div key={e.id} title={e.nombre} style={{ position: "absolute", left: Math.max(0, Math.min(270, x)), top: Math.max(0, Math.min(170, y)), width: 14, height: 14, borderRadius: "50%", background: colors[e.intencion] || COLORS.lila, border: "2px solid white", cursor: "pointer", boxShadow: "0 2px 4px rgba(0,0,0,0.3)" }} />;
                   })}
                 </div>
@@ -737,7 +756,7 @@ function AdminScreen({ currentUser, electores, onBack }) {
               </div>
             </div>
             <div style={{ display: "flex", gap: 12, marginTop: 10, justifyContent: "center" }}>
-              {[["#16A34A", "Seguro"], ["#D97706", "Indeciso"], ["#DC2626", "No apoya"]].map(([c, l]) => (
+              {[["#16A34A", "Si apoya"], ["#D97706", "Indeciso"], ["#DC2626", "No apoya"]].map(([c, l]) => (
                 <div key={l} style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <div style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />
                   <span style={{ fontSize: 11 }}>{l}</span>
