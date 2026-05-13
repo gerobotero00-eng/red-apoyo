@@ -16,9 +16,9 @@ const DEFAULT_USERS = [
 ];
 
 const INITIAL_ELECTORES = [
-  { id: 1, nombre: "ANA GÓMEZ TORRES", cedula: "1098765432", telefono: "3001234567", fechaNacimiento: "1985-03-15", barrio: "LA ESTRELLA", comunaCorregimiento: "COMUNA 1", municipio: "IBAGUÉ", genero: "FEMENINO", lider: "CARLOS PÉREZ", puestoVotacion: "COLEGIO SAN LUIS", mesaVotacion: "3", intencion: "Seguro", observaciones: "", lat: 4.4389, lng: -75.2322, fecha: "2024-01-10 09:30", usuarioRegistro: "carlos" },
-  { id: 2, nombre: "PEDRO MARTÍNEZ", cedula: "1087654321", telefono: "3109876543", fechaNacimiento: "1978-07-22", barrio: "EL VERGEL", comunaCorregimiento: "CORREGIMIENTO SUR", municipio: "IBAGUÉ", genero: "MASCULINO", lider: "CARLOS PÉREZ", puestoVotacion: "ESCUELA EL CARMEN", mesaVotacion: "7", intencion: "Indeciso", observaciones: "SEGUIMIENTO PENDIENTE", lat: 4.4401, lng: -75.2301, fecha: "2024-01-11 11:15", usuarioRegistro: "carlos" },
-  { id: 3, nombre: "LUCÍA HERRERA DÍAZ", cedula: "1076543210", telefono: "3201122334", fechaNacimiento: "1992-11-08", barrio: "CALAMBEO", comunaCorregimiento: "COMUNA 8", municipio: "IBAGUÉ", genero: "FEMENINO", lider: "MARÍA LÓPEZ", puestoVotacion: "INSTITUTO TÉCNICO", mesaVotacion: "12", intencion: "Seguro", observaciones: "", lat: 4.4450, lng: -75.2280, fecha: "2024-01-12 14:00", usuarioRegistro: "maria" },
+  { id: 1, nombre: "ANA GÓMEZ TORRES", cedula: "1098765432", telefono: "3001234567", fechaNacimiento: "1985-03-15", barrio: "LA ESTRELLA", municipio: "IBAGUÉ", genero: "FEMENINO", lider: "CARLOS PÉREZ", puestoVotacion: "COLEGIO SAN LUIS", mesaVotacion: "3", intencion: "Seguro", observaciones: "", lat: 4.4389, lng: -75.2322, fecha: "2024-01-10 09:30", usuarioRegistro: "carlos" },
+  { id: 2, nombre: "PEDRO MARTÍNEZ", cedula: "1087654321", telefono: "3109876543", fechaNacimiento: "1978-07-22", barrio: "EL VERGEL", municipio: "IBAGUÉ", genero: "MASCULINO", lider: "CARLOS PÉREZ", puestoVotacion: "ESCUELA EL CARMEN", mesaVotacion: "7", intencion: "Indeciso", observaciones: "SEGUIMIENTO PENDIENTE", lat: 4.4401, lng: -75.2301, fecha: "2024-01-11 11:15", usuarioRegistro: "carlos" },
+  { id: 3, nombre: "LUCÍA HERRERA DÍAZ", cedula: "1076543210", telefono: "3201122334", fechaNacimiento: "1992-11-08", barrio: "CALAMBEO", municipio: "IBAGUÉ", genero: "FEMENINO", lider: "MARÍA LÓPEZ", puestoVotacion: "INSTITUTO TÉCNICO", mesaVotacion: "12", intencion: "Seguro", observaciones: "", lat: 4.4450, lng: -75.2280, fecha: "2024-01-12 14:00", usuarioRegistro: "maria" },
 ];
 
 const getUsers = () => { try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : DEFAULT_USERS; } catch { return DEFAULT_USERS; } };
@@ -81,7 +81,6 @@ function LoginScreen({ onLogin, onGoRegister }) {
         <span style={{ fontSize: 40 }}>🗳️</span>
       </div>
       <h1 style={{ fontSize: 22, fontWeight: 900, color: COLORS.lila, textAlign: "center", margin: "0 0 4px" }}>Red de Apoyo</h1>
-      {/* CAMBIO 2: nombre actualizado */}
       <h2 style={{ fontSize: 18, fontWeight: 700, color: COLORS.naranja, textAlign: "center", margin: "0 0 30px" }}>Robert Leyton</h2>
       <div style={{ width: "100%", maxWidth: 340 }}>
         <label style={styles.label}>Usuario</label>
@@ -95,7 +94,9 @@ function LoginScreen({ onLogin, onGoRegister }) {
         <button style={styles.btnOutline} onClick={onGoRegister}>
           ✍️ Registrarme como Líder
         </button>
-        {/* CAMBIO 1: eliminada la línea que mostraba usuario/contraseña por defecto */}
+        <p style={{ fontSize: 11, color: COLORS.textoSec, textAlign: "center", marginTop: 8 }}>
+          Admin: <strong>admin / admin123</strong>
+        </p>
       </div>
     </div>
   );
@@ -181,7 +182,6 @@ function InicioScreen({ currentUser, electores, onNavigate }) {
           <span style={{ fontSize: 34 }}>🗳️</span>
         </div>
         <h1 style={{ ...styles.headerTitle, fontSize: 20, textAlign: "center" }}>Red de Apoyo</h1>
-        {/* CAMBIO 2: nombre actualizado */}
         <p style={{ ...styles.headerSub, fontSize: 15, fontWeight: 700 }}>Robert Leyton</p>
         <p style={{ ...styles.headerSub, marginTop: 8 }}>Hola, {currentUser.nombre} 👋</p>
         {currentUser.role === "admin" && <span style={{ background: COLORS.naranja, color: COLORS.blanco, borderRadius: 20, padding: "2px 12px", fontSize: 11, fontWeight: 700, marginTop: 6 }}>ADMINISTRADOR</span>}
@@ -217,8 +217,7 @@ function InicioScreen({ currentUser, electores, onNavigate }) {
 function RegistroScreen({ currentUser, electores, onSave, onBack }) {
   const [form, setForm] = useState({
     nombre: "", cedula: "", telefono: "", fechaNacimiento: "", barrio: "",
-    comunaCorregimiento: "", // CAMBIO 6
-    genero: "", lider: currentUser.nombre, puestoVotacion: "",
+    municipio: "", genero: "", lider: currentUser.nombre, puestoVotacion: "",
     mesaVotacion: "", intencion: "", observaciones: ""
   });
   const [errors, setErrors] = useState({});
@@ -241,7 +240,7 @@ function RegistroScreen({ currentUser, electores, onSave, onBack }) {
     if (!form.cedula) e.cedula = true;
     if (!form.telefono) e.telefono = true;
     if (!form.barrio) e.barrio = true;
-    if (!form.comunaCorregimiento) e.comunaCorregimiento = true;
+    if (!form.municipio) e.municipio = true;
     if (!form.genero) e.genero = true;
     if (!form.intencion) e.intencion = true;
     return e;
@@ -257,7 +256,7 @@ function RegistroScreen({ currentUser, electores, onSave, onBack }) {
         ...form,
         nombre: form.nombre.toUpperCase(),
         barrio: form.barrio.toUpperCase(),
-        comunaCorregimiento: form.comunaCorregimiento.toUpperCase(),
+        municipio: form.municipio.toUpperCase(),
         lider: form.lider.toUpperCase(),
         puestoVotacion: form.puestoVotacion.toUpperCase(),
         observaciones: form.observaciones.toUpperCase(),
@@ -298,7 +297,7 @@ function RegistroScreen({ currentUser, electores, onSave, onBack }) {
           { label: "Teléfono", field: "telefono", placeholder: "EJ: 3001234567", type: "tel" },
           { label: "Fecha de Nacimiento", field: "fechaNacimiento", type: "date" },
           { label: "Barrio / Vereda", field: "barrio", placeholder: "EJ: LA ESTRELLA" },
-          { label: "Comuna / Corregimiento", field: "comunaCorregimiento", placeholder: "EJ: COMUNA 1 / CORREGIMIENTO SUR" }, // CAMBIO 6
+          { label: "Municipio", field: "municipio", placeholder: "EJ: IBAGUÉ" },
           { label: "Líder que Refiere", field: "lider", placeholder: "NOMBRE DEL LÍDER" },
           { label: "Puesto de Votación", field: "puestoVotacion", placeholder: "EJ: COLEGIO SAN LUIS" },
           { label: "Mesa de Votación", field: "mesaVotacion", placeholder: "EJ: 3", type: "tel" },
@@ -378,19 +377,7 @@ function RegistrosScreen({ currentUser, electores, onBack, onDelete }) {
             </div>
             <span style={styles.badge(selected.intencion)}>{selected.intencion}</span>
           </div>
-          {[
-            ["📱 Teléfono", selected.telefono],
-            ["🗓️ Nacimiento", selected.fechaNacimiento],
-            ["🏘️ Barrio", selected.barrio],
-            ["🏙️ Comuna / Corregimiento", selected.comunaCorregimiento], // CAMBIO 6
-            ["⚧️ Género", selected.genero],
-            ["👤 Líder", selected.lider],
-            ["🗳️ Puesto", selected.puestoVotacion],
-            ["# Mesa", selected.mesaVotacion],
-            ["📍 GPS", `${selected.lat?.toFixed(4)}, ${selected.lng?.toFixed(4)}`],
-            ["📅 Fecha", selected.fecha],
-            ["👤 Registrado por", selected.usuarioRegistro]
-          ].map(([k, v]) => (
+          {[["📱 Teléfono", selected.telefono], ["🗓️ Nacimiento", selected.fechaNacimiento], ["🏘️ Barrio", selected.barrio], ["🏙️ Municipio", selected.municipio], ["⚧️ Género", selected.genero], ["👤 Líder", selected.lider], ["🗳️ Puesto", selected.puestoVotacion], ["# Mesa", selected.mesaVotacion], ["📍 GPS", `${selected.lat?.toFixed(4)}, ${selected.lng?.toFixed(4)}`], ["📅 Fecha", selected.fecha], ["👤 Registrado por", selected.usuarioRegistro]].map(([k, v]) => (
             <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px solid ${COLORS.borde}` }}>
               <span style={{ fontSize: 13, color: COLORS.textoSec }}>{k}</span>
               <span style={{ fontSize: 13, fontWeight: 600, maxWidth: "55%", textAlign: "right" }}>{v}</span>
@@ -448,69 +435,13 @@ function RegistrosScreen({ currentUser, electores, onBack, onDelete }) {
   );
 }
 
-// ===================== CAMBIAR CONTRASEÑA =====================
-// CAMBIO 1: nueva pantalla para cambiar contraseña
-function CambiarPasswordScreen({ currentUser, onBack, onUpdate }) {
-  const [form, setForm] = useState({ actual: "", nueva: "", confirmar: "" });
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
-
-  const handleCambiar = () => {
-    setError("");
-    if (!form.actual || !form.nueva || !form.confirmar) { setError("Todos los campos son obligatorios"); return; }
-    const users = getUsers();
-    const user = users.find(u => u.id === currentUser.id);
-    if (user.password !== form.actual) { setError("La contraseña actual es incorrecta"); return; }
-    if (form.nueva.length < 6) { setError("La nueva contraseña debe tener mínimo 6 caracteres"); return; }
-    if (form.nueva !== form.confirmar) { setError("Las contraseñas nuevas no coinciden"); return; }
-    const updated = users.map(u => u.id === currentUser.id ? { ...u, password: form.nueva } : u);
-    saveUsers(updated);
-    onUpdate({ ...currentUser, password: form.nueva });
-    setSuccess(true);
-  };
-
-  if (success) return (
-    <div style={{ ...styles.mobileFrame, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 40 }}>
-      <div style={{ fontSize: 60, marginBottom: 16 }}>✅</div>
-      <h2 style={{ color: COLORS.lila, fontWeight: 900, textAlign: "center" }}>¡Contraseña Actualizada!</h2>
-      <button style={{ ...styles.btnPrimary, marginTop: 20, width: "auto", padding: "12px 30px" }} onClick={onBack}>Volver</button>
-    </div>
-  );
-
-  return (
-    <div>
-      <div style={styles.header}>
-        <button onClick={onBack} style={{ background: "none", border: "none", color: COLORS.blanco, fontSize: 22, cursor: "pointer" }}>←</button>
-        <div>
-          <h2 style={{ ...styles.headerTitle, fontSize: 16 }}>Cambiar Contraseña</h2>
-          <p style={styles.headerSub}>{currentUser.nombre}</p>
-        </div>
-      </div>
-      <div style={styles.content}>
-        <label style={styles.label}>Contraseña Actual</label>
-        <input style={styles.inputNormal} type="password" placeholder="Tu contraseña actual" value={form.actual} onChange={e => setForm(f => ({ ...f, actual: e.target.value }))} />
-        <label style={styles.label}>Nueva Contraseña</label>
-        <input style={styles.inputNormal} type="password" placeholder="Mínimo 6 caracteres" value={form.nueva} onChange={e => setForm(f => ({ ...f, nueva: e.target.value }))} />
-        <label style={styles.label}>Confirmar Nueva Contraseña</label>
-        <input style={styles.inputNormal} type="password" placeholder="Repite la nueva contraseña" value={form.confirmar} onChange={e => setForm(f => ({ ...f, confirmar: e.target.value }))} />
-        {error && <p style={{ color: "#EF4444", fontSize: 13, textAlign: "center", marginBottom: 10, background: "#FEE2E2", padding: "8px 12px", borderRadius: 10 }}>{error}</p>}
-        <button style={styles.btnPrimary} onClick={handleCambiar}>🔐 Actualizar Contraseña</button>
-      </div>
-    </div>
-  );
-}
-
 // ===================== ADMIN =====================
-function AdminScreen({ currentUser, electores, onBack, onUpdateUser }) {
+function AdminScreen({ electores, onBack }) {
   const [tab, setTab] = useState("stats");
   const [users, setUsers] = useState(getUsers());
   const [sheetsUrl, setSheetsUrl] = useState(localStorage.getItem("sheets_url") || "");
   const [sheetsMsg, setSheetsMsg] = useState("");
   const [syncing, setSyncing] = useState(false);
-  // CAMBIO 5: editar usuario
-  const [editingUser, setEditingUser] = useState(null);
-  const [editForm, setEditForm] = useState({});
-  const [editError, setEditError] = useState("");
 
   const totalSeguro = electores.filter(e => e.intencion === "Seguro").length;
   const totalIndeciso = electores.filter(e => e.intencion === "Indeciso").length;
@@ -518,35 +449,11 @@ function AdminScreen({ currentUser, electores, onBack, onUpdateUser }) {
   const porLider = users.filter(u => u.role === "lider").map(u => ({ nombre: u.nombre, count: electores.filter(e => e.usuarioRegistro === u.username).length }));
   const barrios = [...new Set(electores.map(e => e.barrio))].map(b => ({ barrio: b, count: electores.filter(e => e.barrio === b).length })).sort((a, b) => b.count - a.count);
 
-  // CAMBIO 3: exportar CSV con columnas separadas correctamente
   const exportCSV = () => {
-    const headers = ["ID", "Fecha", "Usuario", "Nombre", "Cédula", "Teléfono", "F.Nacimiento", "Barrio", "Comuna/Corregimiento", "Género", "Líder", "Puesto", "Mesa", "Intención", "Observaciones", "Latitud", "Longitud"];
-    const rows = electores.map(e => [
-      e.id,
-      e.fecha,
-      e.usuarioRegistro,
-      e.nombre,
-      e.cedula,
-      e.telefono,
-      e.fechaNacimiento,
-      e.barrio,
-      e.comunaCorregimiento || "",
-      e.genero,
-      e.lider,
-      e.puestoVotacion,
-      e.mesaVotacion,
-      e.intencion,
-      e.observaciones || "",
-      e.lat,
-      e.lng
-    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
-
-    const csv = "\uFEFF" + headers.map(h => `"${h}"`).join(",") + "\n" + rows.join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "base_electoral_robert_leyton.csv";
-    a.click();
+    const headers = "ID,Fecha,Usuario,Nombre,Cédula,Teléfono,F.Nacimiento,Barrio,Municipio,Género,Líder,Puesto,Mesa,Intención,Observaciones,Latitud,Longitud\n";
+    const rows = electores.map(e => `${e.id},"${e.fecha}",${e.usuarioRegistro},"${e.nombre}",${e.cedula},${e.telefono},${e.fechaNacimiento},"${e.barrio}","${e.municipio}",${e.genero},"${e.lider}","${e.puestoVotacion}",${e.mesaVotacion},${e.intencion},"${e.observaciones || ""}",${e.lat},${e.lng}`).join("\n");
+    const blob = new Blob(["\uFEFF" + headers + rows], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "base_electoral_robert_leyton.csv"; a.click();
   };
 
   const syncSheets = async () => {
@@ -573,58 +480,6 @@ function AdminScreen({ currentUser, electores, onBack, onUpdateUser }) {
     setUsers(updated);
     saveUsers(updated);
   };
-
-  // CAMBIO 5: funciones editar usuario
-  const startEdit = (u) => {
-    setEditingUser(u.id);
-    setEditForm({ nombre: u.nombre, email: u.email, username: u.username, newPassword: "", role: u.role });
-    setEditError("");
-  };
-
-  const saveEdit = () => {
-    setEditError("");
-    if (!editForm.nombre || !editForm.email || !editForm.username) { setEditError("Nombre, email y usuario son obligatorios"); return; }
-    const updated = users.map(u => {
-      if (u.id === editingUser) {
-        const cambios = { ...u, nombre: editForm.nombre.toUpperCase(), email: editForm.email.toLowerCase(), username: editForm.username.toLowerCase(), role: editForm.role };
-        if (editForm.newPassword && editForm.newPassword.length >= 6) cambios.password = editForm.newPassword;
-        return cambios;
-      }
-      return u;
-    });
-    saveUsers(updated);
-    setUsers(updated);
-    setEditingUser(null);
-  };
-
-  if (editingUser) {
-    return (
-      <div>
-        <div style={styles.header}>
-          <button onClick={() => setEditingUser(null)} style={{ background: "none", border: "none", color: COLORS.blanco, fontSize: 22, cursor: "pointer" }}>←</button>
-          <div><h2 style={{ ...styles.headerTitle, fontSize: 16 }}>Editar Usuario</h2></div>
-        </div>
-        <div style={styles.content}>
-          <label style={styles.label}>Nombre Completo</label>
-          <input style={styles.input} value={editForm.nombre} onChange={e => setEditForm(f => ({ ...f, nombre: e.target.value }))} />
-          <label style={styles.label}>Correo Electrónico</label>
-          <input style={styles.inputNormal} type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
-          <label style={styles.label}>Usuario</label>
-          <input style={styles.inputNormal} value={editForm.username} onChange={e => setEditForm(f => ({ ...f, username: e.target.value }))} />
-          <label style={styles.label}>Nueva Contraseña (dejar vacío para no cambiar)</label>
-          <input style={styles.inputNormal} type="password" placeholder="Mínimo 6 caracteres" value={editForm.newPassword} onChange={e => setEditForm(f => ({ ...f, newPassword: e.target.value }))} />
-          <label style={styles.label}>Rol</label>
-          <select style={styles.inputNormal} value={editForm.role} onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))}>
-            <option value="lider">Líder</option>
-            <option value="admin">Administrador</option>
-          </select>
-          {editError && <p style={{ color: "#EF4444", fontSize: 13, background: "#FEE2E2", padding: "8px 12px", borderRadius: 10, marginBottom: 10 }}>{editError}</p>}
-          <button style={styles.btnPrimary} onClick={saveEdit}>💾 Guardar Cambios</button>
-          <button style={styles.btnOutline} onClick={() => setEditingUser(null)}>Cancelar</button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div>
@@ -694,35 +549,33 @@ function AdminScreen({ currentUser, electores, onBack, onUpdateUser }) {
             <div style={styles.card}>
               <h4 style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 800, color: COLORS.lila }}>📤 CONECTAR CON GOOGLE SHEETS</h4>
               <p style={{ fontSize: 13, color: COLORS.textoSec, marginBottom: 12, lineHeight: 1.6 }}>
-                Para sincronizar en tiempo real con Google Sheets necesitas crear un <strong>Apps Script Webhook</strong>.
+                Para sincronizar en tiempo real con Google Sheets necesitas crear un <strong>Apps Script Webhook</strong>. Sigue estos pasos:
               </p>
-              {[
-                ["PASO 1", "Abre Google Sheets y crea una hoja nueva llamada BASE ELECTORAL"],
-                ["PASO 2", "Ve a Extensiones → Apps Script y pega el código de abajo"],
-                ["PASO 3", "Despliega como Aplicación Web y copia la URL aquí abajo"],
-              ].map(([paso, texto]) => (
-                <div key={paso} style={{ background: COLORS.gris, borderRadius: 12, padding: 12, marginBottom: 14 }}>
-                  <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: COLORS.lila }}>{paso}</p>
-                  <p style={{ margin: 0, fontSize: 12, color: COLORS.texto }}>{texto}</p>
-                </div>
-              ))}
-              {/* CAMBIO 4: también botón para Google Drive */}
-              <div style={{ background: "#E8F4E8", borderRadius: 12, padding: 12, marginBottom: 14 }}>
-                <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "#065F46" }}>💡 GOOGLE DRIVE</p>
-                <p style={{ margin: 0, fontSize: 12, color: "#065F46" }}>Exporta el CSV y súbelo a Google Drive para tenerlo en línea. Puedes abrirlo con Google Sheets directamente desde Drive.</p>
+              <div style={{ background: COLORS.gris, borderRadius: 12, padding: 12, marginBottom: 14 }}>
+                <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: COLORS.lila }}>PASO 1</p>
+                <p style={{ margin: 0, fontSize: 12, color: COLORS.texto }}>Abre Google Sheets y crea una hoja nueva llamada <strong>BASE ELECTORAL</strong></p>
+              </div>
+              <div style={{ background: COLORS.gris, borderRadius: 12, padding: 12, marginBottom: 14 }}>
+                <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: COLORS.lila }}>PASO 2</p>
+                <p style={{ margin: 0, fontSize: 12, color: COLORS.texto }}>Ve a <strong>Extensiones → Apps Script</strong> y pega el código que te daré abajo</p>
+              </div>
+              <div style={{ background: COLORS.gris, borderRadius: 12, padding: 12, marginBottom: 14 }}>
+                <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: COLORS.lila }}>PASO 3</p>
+                <p style={{ margin: 0, fontSize: 12, color: COLORS.texto }}>Despliega como <strong>Aplicación Web</strong> y copia la URL aquí abajo</p>
               </div>
               <label style={styles.label}>URL del Webhook de Apps Script</label>
               <input style={styles.inputNormal} placeholder="https://script.google.com/macros/s/..." value={sheetsUrl} onChange={e => setSheetsUrl(e.target.value)} />
               {sheetsMsg && <p style={{ fontSize: 13, marginBottom: 10, padding: "8px 12px", borderRadius: 10, background: sheetsMsg.includes("✅") ? "#D1FAE5" : "#FEE2E2", color: sheetsMsg.includes("✅") ? "#065F46" : "#991B1B" }}>{sheetsMsg}</p>}
               <button style={{ ...styles.btnPrimary, opacity: syncing ? 0.7 : 1 }} onClick={syncSheets} disabled={syncing}>
-                {syncing ? "⏳ Sincronizando..." : "🔄 Sincronizar con Google Sheets"}
+                {syncing ? "⏳ Sincronizando..." : "🔄 Sincronizar Ahora"}
               </button>
               <button style={styles.btnSecondary} onClick={exportCSV}>
-                📥 Exportar CSV y subir a Drive
+                📥 Exportar CSV (alternativa)
               </button>
             </div>
             <div style={styles.card}>
               <h4 style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 800, color: COLORS.textoSec }}>CÓDIGO PARA APPS SCRIPT</h4>
+              <p style={{ fontSize: 12, color: COLORS.textoSec, marginBottom: 10 }}>Copia este código en Google Apps Script:</p>
               <div style={{ background: "#1E1B4B", borderRadius: 10, padding: 12, overflowX: "auto" }}>
                 <pre style={{ margin: 0, fontSize: 10, color: "#A5B4FC", lineHeight: 1.6 }}>{`function doPost(e) {
   var sheet = SpreadsheetApp
@@ -731,12 +584,13 @@ function AdminScreen({ currentUser, electores, onBack, onUpdateUser }) {
   var data = JSON.parse(e.postData.contents);
   var electores = data.electores;
   
+  // Limpiar hoja y agregar headers
   sheet.clearContents();
   sheet.appendRow([
     "ID","FECHA","USUARIO","NOMBRE",
     "CÉDULA","TELÉFONO","F.NACIMIENTO",
-    "BARRIO","COMUNA/CORREGIMIENTO",
-    "GÉNERO","LÍDER","PUESTO","MESA",
+    "BARRIO","MUNICIPIO","GÉNERO",
+    "LÍDER","PUESTO","MESA",
     "INTENCIÓN","OBSERVACIONES",
     "LATITUD","LONGITUD"
   ]);
@@ -746,10 +600,10 @@ function AdminScreen({ currentUser, electores, onBack, onUpdateUser }) {
       e.id, e.fecha, e.usuarioRegistro,
       e.nombre, e.cedula, e.telefono,
       e.fechaNacimiento, e.barrio,
-      e.comunaCorregimiento, e.genero,
-      e.lider, e.puestoVotacion,
-      e.mesaVotacion, e.intencion,
-      e.observaciones, e.lat, e.lng
+      e.municipio, e.genero, e.lider,
+      e.puestoVotacion, e.mesaVotacion,
+      e.intencion, e.observaciones,
+      e.lat, e.lng
     ]);
   });
   
@@ -765,7 +619,7 @@ function AdminScreen({ currentUser, electores, onBack, onUpdateUser }) {
         {tab === "usuarios" && (
           <div>
             <div style={{ background: COLORS.lilaLight, borderRadius: 12, padding: 12, marginBottom: 14 }}>
-              <p style={{ margin: 0, fontSize: 13, color: COLORS.lilaDark }}>💡 Puedes activar, desactivar y editar los datos de cada usuario.</p>
+              <p style={{ margin: 0, fontSize: 13, color: COLORS.lilaDark }}>💡 Los líderes pueden registrarse solos desde la pantalla de login. Aquí puedes activar o desactivar sus cuentas.</p>
             </div>
             {users.map(u => (
               <div key={u.id} style={styles.card}>
@@ -778,13 +632,9 @@ function AdminScreen({ currentUser, electores, onBack, onUpdateUser }) {
                       <span style={{ background: u.activo ? "#D1FAE5" : "#FEE2E2", color: u.activo ? "#065F46" : "#991B1B", borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700 }}>{u.activo ? "Activo" : "Inactivo"}</span>
                     </div>
                   </div>
-                  <div style={{ textAlign: "right", display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
-                    <p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: COLORS.lila }}>{electores.filter(e => e.usuarioRegistro === u.username).length}</p>
-                    <p style={{ margin: 0, fontSize: 10, color: COLORS.textoSec }}>registros</p>
-                    {/* CAMBIO 5: botón editar */}
-                    <button onClick={() => startEdit(u)} style={{ background: COLORS.lilaLight, color: COLORS.lilaDark, border: "none", borderRadius: 10, padding: "5px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                      ✏️ Editar
-                    </button>
+                  <div style={{ textAlign: "right" }}>
+                    <p style={{ margin: "0 0 6px", fontSize: 18, fontWeight: 900, color: COLORS.lila }}>{electores.filter(e => e.usuarioRegistro === u.username).length}</p>
+                    <p style={{ margin: "0 0 6px", fontSize: 10, color: COLORS.textoSec }}>registros</p>
                     {u.role !== "admin" && (
                       <button onClick={() => toggleUser(u.id)} style={{ ...u.activo ? styles.btnDanger : styles.btnSuccess, fontSize: 11, padding: "5px 10px" }}>
                         {u.activo ? "Desactivar" : "Activar"}
@@ -867,16 +717,13 @@ export default function App() {
       {screen === "inicio" && <InicioScreen currentUser={currentUser} electores={electores} onNavigate={setScreen} />}
       {screen === "registro" && <RegistroScreen currentUser={currentUser} electores={electores} onSave={handleSaveElector} onBack={() => setScreen("inicio")} />}
       {screen === "registros" && <RegistrosScreen currentUser={currentUser} electores={electores} onBack={() => setScreen("inicio")} onDelete={handleDeleteElector} />}
-      {screen === "admin" && currentUser.role === "admin" && <AdminScreen currentUser={currentUser} electores={electores} onBack={() => setScreen("inicio")} onUpdateUser={setCurrentUser} />}
-      {/* CAMBIO 1: pantalla cambiar contraseña */}
-      {screen === "password" && <CambiarPasswordScreen currentUser={currentUser} onBack={() => setScreen("inicio")} onUpdate={setCurrentUser} />}
+      {screen === "admin" && currentUser.role === "admin" && <AdminScreen electores={electores} onBack={() => setScreen("inicio")} />}
 
       <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, background: COLORS.blanco, borderTop: `1px solid ${COLORS.borde}`, display: "flex", padding: "6px 0 8px", zIndex: 100 }}>
         {[
           ["inicio", "🏠", "Inicio"],
           ["registro", "➕", "Registrar"],
           ["registros", "👥", "Registros"],
-          ["password", "🔐", "Contraseña"], // CAMBIO 1
           ...(currentUser.role === "admin" ? [["admin", "⚙️", "Admin"]] : []),
         ].map(([s, icon, label]) => (
           <button key={s} style={styles.navBtn(screen === s)} onClick={() => setScreen(s)}>
