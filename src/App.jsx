@@ -60,7 +60,7 @@ const RadioGroup = ({ value, onChange, options }) => (
   </div>
 );
 
-// ===================== EXPORTAR EXCEL (.xlsx) =====================
+// ===================== EXPORTAR EXCEL (.xlsx) CON PESTAÑAS POR COMUNA =====================
 const exportExcel = (electores) => {
   const headers = [
     "ID", "Fecha", "Usuario", "Nombre", "Cédula", "Teléfono",
@@ -68,18 +68,36 @@ const exportExcel = (electores) => {
     "Género", "Líder", "Puesto de Votación", "Mesa",
     "Intención de Voto", "Observaciones", "Latitud", "Longitud"
   ];
-  const rows = electores.map(e => [
+
+  const toRow = (e) => [
     e.id, e.fecha || "", e.usuarioRegistro || "",
     e.nombre || "", e.cedula || "", e.telefono || "",
     e.fechaNacimiento || "", e.direccion || "", e.barrio || "",
     e.comunaCorregimiento || "", e.genero || "", e.lider || "",
     e.puestoVotacion || "", e.mesaVotacion || "", e.intencion || "",
     e.observaciones || "", e.lat || "", e.lng || ""
-  ]);
-  const wsData = [headers, ...rows];
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ];
+
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "BASE ELECTORAL");
+
+  // Pestaña 1: BASE GENERAL con todos
+  const wsGeneral = XLSX.utils.aoa_to_sheet([headers, ...electores.map(toRow)]);
+  // Estilo ancho de columnas
+  wsGeneral["!cols"] = headers.map((_, i) => ({ wch: [6,18,10,28,14,13,13,22,16,22,10,20,22,6,14,22,10,10][i] }));
+  XLSX.utils.book_append_sheet(wb, wsGeneral, "BASE GENERAL");
+
+  // Pestañas por cada comuna que tenga registros
+  const comunas = [...new Set(electores.map(e => e.comunaCorregimiento).filter(Boolean))].sort();
+  comunas.forEach(comuna => {
+    const filtrados = electores.filter(e => e.comunaCorregimiento === comuna);
+    if (filtrados.length === 0) return;
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...filtrados.map(toRow)]);
+    ws["!cols"] = headers.map((_, i) => ({ wch: [6,18,10,28,14,13,13,22,16,22,10,20,22,6,14,22,10,10][i] }));
+    // Nombre de pestaña máx 31 caracteres (límite Excel)
+    const nombrePestana = comuna.substring(0, 31);
+    XLSX.utils.book_append_sheet(wb, ws, nombrePestana);
+  });
+
   XLSX.writeFile(wb, "base_electoral_robert_leyton.xlsx");
 };
 
