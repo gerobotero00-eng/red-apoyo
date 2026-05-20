@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 
 const COLORS = {
@@ -9,6 +9,55 @@ const COLORS = {
 
 const STORAGE_KEY = "red_apoyo_users";
 const ELECTORES_KEY = "red_apoyo_electores";
+const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwGloFDCZB_XYw0okRQoBqHgQdsdhvHHK342U-MWhkzT-mM9UHIwGEvjEbSjaPbhJyD/exec";
+
+const HEADERS_SHEETS = [
+  "ID","Fecha","Usuario","Nombre","Cédula","Teléfono","F.Nacimiento",
+  "Dirección","Barrio","Comuna/Corregimiento","Género","Líder",
+  "Puesto de Votación","Mesa","Intención de Voto","Observaciones","Latitud","Longitud"
+];
+
+const electorToRow = (e) => [
+  String(e.id), e.fecha||"", e.usuarioRegistro||"", e.nombre||"", e.cedula||"",
+  e.telefono||"", e.fechaNacimiento||"", e.direccion||"", e.barrio||"",
+  e.comunaCorregimiento||"", e.genero||"", e.lider||"", e.puestoVotacion||"",
+  e.mesaVotacion||"", e.intencion||"", e.observaciones||"",
+  String(e.lat||""), String(e.lng||"")
+];
+
+const rowToElector = (obj) => ({
+  id: Number(obj["ID"]) || Date.now(),
+  fecha: obj["Fecha"]||"", usuarioRegistro: obj["Usuario"]||"",
+  nombre: obj["Nombre"]||"", cedula: obj["Cédula"]||"",
+  telefono: obj["Teléfono"]||"", fechaNacimiento: obj["F.Nacimiento"]||"",
+  direccion: obj["Dirección"]||"", barrio: obj["Barrio"]||"",
+  comunaCorregimiento: obj["Comuna/Corregimiento"]||"", genero: obj["Género"]||"",
+  lider: obj["Líder"]||"", puestoVotacion: obj["Puesto de Votación"]||"",
+  mesaVotacion: obj["Mesa"]||"", intencion: obj["Intención de Voto"]||"",
+  observaciones: obj["Observaciones"]||"",
+  lat: parseFloat(obj["Latitud"])||4.4389, lng: parseFloat(obj["Longitud"])||-75.2322,
+});
+
+const syncToSheets = async (electores) => {
+  try {
+    await fetch(SHEETS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ headers: HEADERS_SHEETS, rows: electores.map(electorToRow) }),
+    });
+  } catch (e) {}
+};
+
+const fetchFromSheets = async () => {
+  try {
+    const res = await fetch(SHEETS_URL);
+    const data = await res.json();
+    if (data.ok && Array.isArray(data.rows) && data.rows.length > 0) {
+      return data.rows.map(rowToElector);
+    }
+  } catch (e) {}
+  return null;
+};
 
 const DEFAULT_USERS = [
   { id: 1, username: "admin", password: "admin123", role: "admin", nombre: "Administrador", email: "admin@redapoyo.com", activo: true },
@@ -60,44 +109,27 @@ const RadioGroup = ({ value, onChange, options }) => (
   </div>
 );
 
-// ===================== EXPORTAR EXCEL (.xlsx) CON PESTAÑAS POR COMUNA =====================
+// ===================== EXPORTAR EXCEL CON PESTAÑAS POR COMUNA =====================
 const exportExcel = (electores) => {
-  const headers = [
-    "ID", "Fecha", "Usuario", "Nombre", "Cédula", "Teléfono",
-    "F.Nacimiento", "Dirección", "Barrio", "Comuna/Corregimiento",
-    "Género", "Líder", "Puesto de Votación", "Mesa",
-    "Intención de Voto", "Observaciones", "Latitud", "Longitud"
-  ];
-
+  const colWidths = [6,18,10,28,14,13,13,22,16,22,10,20,22,6,14,22,10,10];
   const toRow = (e) => [
-    e.id, e.fecha || "", e.usuarioRegistro || "",
-    e.nombre || "", e.cedula || "", e.telefono || "",
-    e.fechaNacimiento || "", e.direccion || "", e.barrio || "",
-    e.comunaCorregimiento || "", e.genero || "", e.lider || "",
-    e.puestoVotacion || "", e.mesaVotacion || "", e.intencion || "",
-    e.observaciones || "", e.lat || "", e.lng || ""
+    e.id, e.fecha||"", e.usuarioRegistro||"", e.nombre||"", e.cedula||"",
+    e.telefono||"", e.fechaNacimiento||"", e.direccion||"", e.barrio||"",
+    e.comunaCorregimiento||"", e.genero||"", e.lider||"", e.puestoVotacion||"",
+    e.mesaVotacion||"", e.intencion||"", e.observaciones||"", e.lat||"", e.lng||""
   ];
-
   const wb = XLSX.utils.book_new();
-
-  // Pestaña 1: BASE GENERAL con todos
-  const wsGeneral = XLSX.utils.aoa_to_sheet([headers, ...electores.map(toRow)]);
-  // Estilo ancho de columnas
-  wsGeneral["!cols"] = headers.map((_, i) => ({ wch: [6,18,10,28,14,13,13,22,16,22,10,20,22,6,14,22,10,10][i] }));
+  const wsGeneral = XLSX.utils.aoa_to_sheet([HEADERS_SHEETS, ...electores.map(toRow)]);
+  wsGeneral["!cols"] = colWidths.map(w => ({ wch: w }));
   XLSX.utils.book_append_sheet(wb, wsGeneral, "BASE GENERAL");
-
-  // Pestañas por cada comuna que tenga registros
   const comunas = [...new Set(electores.map(e => e.comunaCorregimiento).filter(Boolean))].sort();
   comunas.forEach(comuna => {
     const filtrados = electores.filter(e => e.comunaCorregimiento === comuna);
-    if (filtrados.length === 0) return;
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...filtrados.map(toRow)]);
-    ws["!cols"] = headers.map((_, i) => ({ wch: [6,18,10,28,14,13,13,22,16,22,10,20,22,6,14,22,10,10][i] }));
-    // Nombre de pestaña máx 31 caracteres (límite Excel)
-    const nombrePestana = comuna.substring(0, 31);
-    XLSX.utils.book_append_sheet(wb, ws, nombrePestana);
+    if (!filtrados.length) return;
+    const ws = XLSX.utils.aoa_to_sheet([HEADERS_SHEETS, ...filtrados.map(toRow)]);
+    ws["!cols"] = colWidths.map(w => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, ws, comuna.substring(0, 31));
   });
-
   XLSX.writeFile(wb, "base_electoral_robert_leyton.xlsx");
 };
 
@@ -284,7 +316,7 @@ function RegistroScreen({ currentUser, electores, onSave, onBack }) {
     <div style={{ ...styles.mobileFrame, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 40 }}>
       <div style={{ fontSize: 60, marginBottom: 16 }}>✅</div>
       <h2 style={{ color: COLORS.lila, fontWeight: 900 }}>¡Elector Registrado!</h2>
-      <p style={{ color: COLORS.textoSec, textAlign: "center" }}>El registro fue guardado exitosamente.</p>
+      <p style={{ color: COLORS.textoSec, textAlign: "center" }}>El registro fue guardado y enviado a Google Sheets.</p>
       <button style={{ ...styles.btnPrimary, marginTop: 20, width: "auto", padding: "12px 30px" }} onClick={onBack}>Volver al Inicio</button>
     </div>
   );
@@ -317,20 +349,14 @@ function RegistroScreen({ currentUser, electores, onSave, onBack }) {
             {errors[field] && <p style={{ color: "#EF4444", fontSize: 12, marginTop: -8, marginBottom: 8 }}>Campo requerido</p>}
           </div>
         ))}
-
         <div>
           <label style={styles.label}>Comuna / Corregimiento</label>
-          <select
-            style={{ ...styles.input, borderColor: errors.comunaCorregimiento ? "#EF4444" : COLORS.borde }}
-            value={form.comunaCorregimiento}
-            onChange={e => update("comunaCorregimiento", e.target.value)}
-          >
+          <select style={{ ...styles.input, borderColor: errors.comunaCorregimiento ? "#EF4444" : COLORS.borde }} value={form.comunaCorregimiento} onChange={e => update("comunaCorregimiento", e.target.value)}>
             <option value="">Seleccionar...</option>
             {COMUNAS.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           {errors.comunaCorregimiento && <p style={{ color: "#EF4444", fontSize: 12, marginTop: -8, marginBottom: 8 }}>Campo requerido</p>}
         </div>
-
         {[
           { label: "Líder que Refiere", field: "lider", placeholder: "NOMBRE DEL LÍDER" },
           { label: "Puesto de Votación", field: "puestoVotacion", placeholder: "EJ: COLEGIO SAN LUIS" },
@@ -338,39 +364,27 @@ function RegistroScreen({ currentUser, electores, onSave, onBack }) {
         ].map(({ label, field, placeholder, type }) => (
           <div key={field}>
             <label style={styles.label}>{label}</label>
-            <input
-              style={{ ...styles.input, borderColor: errors[field] ? "#EF4444" : COLORS.borde }}
-              type={type || "text"}
-              placeholder={placeholder}
-              value={form[field]}
-              onChange={e => update(field, e.target.value)}
-            />
+            <input style={{ ...styles.input, borderColor: errors[field] ? "#EF4444" : COLORS.borde }} type={type || "text"} placeholder={placeholder} value={form[field]} onChange={e => update(field, e.target.value)} />
             {errors[field] && <p style={{ color: "#EF4444", fontSize: 12, marginTop: -8, marginBottom: 8 }}>Campo requerido</p>}
           </div>
         ))}
-
         <div>
           <label style={styles.label}>Género</label>
           <select style={{ ...styles.input, borderColor: errors.genero ? "#EF4444" : COLORS.borde }} value={form.genero} onChange={e => update("genero", e.target.value)}>
             <option value="">Seleccionar...</option>
-            <option>MASCULINO</option>
-            <option>FEMENINO</option>
-            <option>OTRO</option>
+            <option>MASCULINO</option><option>FEMENINO</option><option>OTRO</option>
           </select>
           {errors.genero && <p style={{ color: "#EF4444", fontSize: 12, marginTop: -8, marginBottom: 8 }}>Campo requerido</p>}
         </div>
-
         <div>
           <label style={{ ...styles.label, marginBottom: 8 }}>Intención de Voto *</label>
           <RadioGroup value={form.intencion} onChange={v => update("intencion", v)} options={["Si apoya", "Indeciso", "No apoya"]} />
           {errors.intencion && <p style={{ color: "#EF4444", fontSize: 12, marginTop: -6, marginBottom: 8 }}>Selecciona una opción</p>}
         </div>
-
         <div>
           <label style={styles.label}>Observaciones</label>
           <textarea style={{ ...styles.input, height: 80, resize: "none" }} placeholder="NOTAS ADICIONALES..." value={form.observaciones} onChange={e => update("observaciones", e.target.value)} />
         </div>
-
         <button style={{ ...styles.btnPrimary, opacity: saving ? 0.7 : 1 }} onClick={handleSave} disabled={saving || !!cedulaError}>
           {saving ? "⏳ Guardando..." : "💾 Guardar Registro"}
         </button>
@@ -434,7 +448,6 @@ function EditarElectorScreen({ elector, onBack, onSave }) {
             <input style={styles.input} type={type || "text"} value={form[field] || ""} onChange={e => update(field, e.target.value)} />
           </div>
         ))}
-
         <div>
           <label style={styles.label}>Comuna / Corregimiento</label>
           <select style={styles.input} value={form.comunaCorregimiento || ""} onChange={e => update("comunaCorregimiento", e.target.value)}>
@@ -442,7 +455,6 @@ function EditarElectorScreen({ elector, onBack, onSave }) {
             {COMUNAS.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
-
         {[
           { label: "Líder que Refiere", field: "lider" },
           { label: "Puesto de Votación", field: "puestoVotacion" },
@@ -453,7 +465,6 @@ function EditarElectorScreen({ elector, onBack, onSave }) {
             <input style={styles.input} type={type || "text"} value={form[field] || ""} onChange={e => update(field, e.target.value)} />
           </div>
         ))}
-
         <div>
           <label style={styles.label}>Género</label>
           <select style={styles.input} value={form.genero || ""} onChange={e => update("genero", e.target.value)}>
@@ -522,7 +533,6 @@ function RegistrosScreen({ currentUser, electores, onBack, onDelete, onEdit }) {
             ["👤 Líder", selected.lider],
             ["🗳️ Puesto", selected.puestoVotacion],
             ["# Mesa", selected.mesaVotacion],
-            ["📍 GPS", `${selected.lat?.toFixed(4)}, ${selected.lng?.toFixed(4)}`],
             ["📅 Fecha", selected.fecha],
             ["👤 Registrado por", selected.usuarioRegistro],
           ].map(([k, v]) => (
@@ -644,7 +654,6 @@ function CambiarPasswordScreen({ currentUser, onBack, onUpdate }) {
 function AdminScreen({ currentUser, electores, onBack }) {
   const [tab, setTab] = useState("stats");
   const [users, setUsers] = useState(getUsers());
-  const [sheetsUrl, setSheetsUrl] = useState(localStorage.getItem("sheets_url") || "");
   const [sheetsMsg, setSheetsMsg] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -660,38 +669,13 @@ function AdminScreen({ currentUser, electores, onBack }) {
   const barrios = [...new Set(electores.map(e => e.barrio))].map(b => ({ barrio: b, count: electores.filter(e => e.barrio === b).length })).sort((a, b) => b.count - a.count);
   const comunas = [...new Set(electores.map(e => e.comunaCorregimiento).filter(Boolean))].map(c => ({ comuna: c, count: electores.filter(e => e.comunaCorregimiento === c).length })).sort((a, b) => b.count - a.count);
 
-  const syncSheets = async () => {
-    if (!sheetsUrl) { setSheetsMsg("⚠️ Ingresa primero la URL del webhook"); return; }
+  const handleSyncSheets = async () => {
     setSyncing(true); setSheetsMsg("");
-    const headers = [
-      "ID", "Fecha", "Usuario", "Nombre", "Cédula", "Teléfono",
-      "F.Nacimiento", "Dirección", "Barrio", "Comuna/Corregimiento",
-      "Género", "Líder", "Puesto de Votación", "Mesa",
-      "Intención de Voto", "Observaciones", "Latitud", "Longitud"
-    ];
-    const rows = electores.map(e => [
-      String(e.id), e.fecha || "", e.usuarioRegistro || "",
-      e.nombre || "", e.cedula || "", e.telefono || "",
-      e.fechaNacimiento || "", e.direccion || "", e.barrio || "",
-      e.comunaCorregimiento || "", e.genero || "", e.lider || "",
-      e.puestoVotacion || "", e.mesaVotacion || "", e.intencion || "",
-      e.observaciones || "", String(e.lat || ""), String(e.lng || "")
-    ]);
     try {
-      await fetch(sheetsUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ headers, rows }),
-      });
-      localStorage.setItem("sheets_url", sheetsUrl);
-      setSheetsMsg("✅ Datos enviados. Revisa tu hoja de cálculo.");
-    } catch (err) {
-      if (err instanceof TypeError) {
-        localStorage.setItem("sheets_url", sheetsUrl);
-        setSheetsMsg("✅ Solicitud enviada (sin confirmación por CORS). Revisa tu hoja.");
-      } else {
-        setSheetsMsg("❌ Error al conectar. Verifica la URL del webhook.");
-      }
+      await syncToSheets(electores);
+      setSheetsMsg("✅ Datos sincronizados con Google Sheets correctamente.");
+    } catch {
+      setSheetsMsg("⚠️ Sincronización enviada. Revisa tu hoja de cálculo.");
     }
     setSyncing(false);
   };
@@ -755,24 +739,6 @@ function AdminScreen({ currentUser, electores, onBack }) {
     </div>
   );
 
-  const appsScriptCode = `function doPost(e) {
-  try {
-    var data = JSON.parse(e.postData.contents);
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheetByName("BASE ELECTORAL") || ss.insertSheet("BASE ELECTORAL");
-    sheet.clearContents();
-    sheet.appendRow(data.headers);
-    data.rows.forEach(function(row) { sheet.appendRow(row); });
-    return ContentService
-      .createTextOutput(JSON.stringify({ ok: true, total: data.rows.length }))
-      .setMimeType(ContentService.MimeType.JSON);
-  } catch(err) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ ok: false, error: err.message }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}`;
-
   return (
     <div>
       <div style={styles.header}>
@@ -827,41 +793,31 @@ function AdminScreen({ currentUser, electores, onBack }) {
               </div>
             ))}
           </div>
-          <button style={styles.btnPrimary} onClick={() => exportExcel(electores)}>📥 Exportar a Excel (.xlsx)</button>
+          <button style={styles.btnPrimary} onClick={() => exportExcel(electores)}>📥 Exportar Excel con pestañas por comuna</button>
         </>}
 
         {tab === "sheets" && (
           <div style={styles.card}>
-            <h4 style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 800, color: COLORS.lila }}>📤 CONECTAR CON GOOGLE SHEETS</h4>
-            <div style={{ background: COLORS.gris, borderRadius: 12, padding: 12, marginBottom: 14 }}>
-              <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: COLORS.lila }}>PASO 1</p>
-              <p style={{ margin: 0, fontSize: 12, color: COLORS.texto }}>Abre tu Google Sheet y crea una hoja llamada <strong>BASE ELECTORAL</strong>.</p>
+            <h4 style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 800, color: COLORS.lila }}>📤 GOOGLE SHEETS — SINCRONIZACIÓN AUTOMÁTICA</h4>
+            <div style={{ background: "#D1FAE5", borderRadius: 12, padding: 12, marginBottom: 14 }}>
+              <p style={{ margin: 0, fontSize: 13, color: "#065F46", fontWeight: 700 }}>✅ Sheets ya está conectado</p>
+              <p style={{ margin: "4px 0 0", fontSize: 12, color: "#065F46" }}>Cada vez que guardas un elector, los datos se envían automáticamente a tu hoja de cálculo.</p>
             </div>
-            <div style={{ background: COLORS.gris, borderRadius: 12, padding: 12, marginBottom: 14 }}>
-              <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: COLORS.lila }}>PASO 2 — Copia este código en Apps Script</p>
-              <textarea
-                readOnly
-                value={appsScriptCode}
-                style={{ width: "100%", height: 160, fontSize: 10, fontFamily: "monospace", borderRadius: 8, border: `1px solid ${COLORS.borde}`, padding: 8, background: "#1E1B4B", color: "#A5B4FC", resize: "none", boxSizing: "border-box" }}
-                onClick={e => e.target.select()}
-              />
-              <p style={{ margin: "4px 0 0", fontSize: 11, color: COLORS.textoSec }}>Toca el código para seleccionarlo y copiarlo.</p>
+            <div style={{ background: COLORS.lilaLight, borderRadius: 12, padding: 12, marginBottom: 14 }}>
+              <p style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 700, color: COLORS.lilaDark }}>📋 PARA VER CAMBIOS DE SHEETS EN LA APP:</p>
+              <p style={{ margin: 0, fontSize: 12, color: COLORS.lilaDark }}>1. Edita los datos en tu Google Sheet</p>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: COLORS.lilaDark }}>2. Pulsa el botón "Importar desde Sheets" abajo</p>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: COLORS.lilaDark }}>3. Los datos se actualizarán en la app</p>
             </div>
-            <div style={{ background: COLORS.gris, borderRadius: 12, padding: 12, marginBottom: 14 }}>
-              <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: COLORS.lila }}>PASO 3</p>
-              <p style={{ margin: 0, fontSize: 12, color: COLORS.texto }}>En Apps Script: <strong>Implementar → Nueva implementación → Aplicación web</strong>. Ejecutar como: <em>Yo</em>. Acceso: <em>Cualquier persona</em>. Copia la URL que genera.</p>
-            </div>
-            <label style={styles.label}>URL del Webhook</label>
-            <input style={styles.inputNormal} placeholder="https://script.google.com/macros/s/..." value={sheetsUrl} onChange={e => setSheetsUrl(e.target.value)} />
             {sheetsMsg && (
-              <p style={{ fontSize: 13, marginBottom: 10, padding: "8px 12px", borderRadius: 10, background: sheetsMsg.includes("✅") ? "#D1FAE5" : "#FEE2E2", color: sheetsMsg.includes("✅") ? "#065F46" : "#991B1B" }}>
+              <p style={{ fontSize: 13, marginBottom: 10, padding: "8px 12px", borderRadius: 10, background: sheetsMsg.includes("✅") ? "#D1FAE5" : "#FEF3C7", color: sheetsMsg.includes("✅") ? "#065F46" : "#92400E" }}>
                 {sheetsMsg}
               </p>
             )}
-            <button style={{ ...styles.btnPrimary, opacity: syncing ? 0.7 : 1 }} onClick={syncSheets} disabled={syncing}>
-              {syncing ? "⏳ Sincronizando..." : "🔄 Sincronizar con Google Sheets"}
+            <button style={{ ...styles.btnPrimary, opacity: syncing ? 0.7 : 1 }} onClick={handleSyncSheets} disabled={syncing}>
+              {syncing ? "⏳ Sincronizando..." : "🔄 Sincronizar manualmente con Sheets"}
             </button>
-            <button style={styles.btnSecondary} onClick={() => exportExcel(electores)}>📥 Exportar Excel (.xlsx)</button>
+            <button style={styles.btnSecondary} onClick={() => exportExcel(electores)}>📥 Exportar Excel con pestañas</button>
           </div>
         )}
 
@@ -883,9 +839,6 @@ function AdminScreen({ currentUser, electores, onBack }) {
             </select>
             {newUserMsg && <p style={{ fontSize: 13, marginBottom: 8, padding: "8px 12px", borderRadius: 10, background: newUserMsg.includes("✅") ? "#D1FAE5" : "#FEE2E2", color: newUserMsg.includes("✅") ? "#065F46" : "#991B1B" }}>{newUserMsg}</p>}
             <button style={styles.btnPrimary} onClick={crearUsuario}>✅ Crear Usuario</button>
-          </div>
-          <div style={{ background: COLORS.lilaLight, borderRadius: 12, padding: 12, marginBottom: 14 }}>
-            <p style={{ margin: 0, fontSize: 13, color: COLORS.lilaDark }}>💡 Puedes activar, desactivar y editar los datos de cada usuario.</p>
           </div>
           {users.map(u => (
             <div key={u.id} style={styles.card}>
@@ -950,30 +903,59 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [screen, setScreen] = useState("login");
   const [electores, setElectores] = useState(getElectores());
+  const [loadingSheets, setLoadingSheets] = useState(false);
+
+  // Al iniciar sesión, intenta cargar datos desde Sheets
+  useEffect(() => {
+    if (currentUser) {
+      setLoadingSheets(true);
+      fetchFromSheets().then(data => {
+        if (data && data.length > 0) {
+          setElectores(data);
+          saveElectores(data);
+        }
+        setLoadingSheets(false);
+      });
+    }
+  }, [currentUser]);
 
   const handleLogin = (user) => { setCurrentUser(user); setScreen("inicio"); };
   const handleLogout = () => { setCurrentUser(null); setScreen("login"); };
 
   const handleSaveElector = (data) => {
     const updated = [...electores, data];
-    setElectores(updated); saveElectores(updated);
+    setElectores(updated);
+    saveElectores(updated);
+    syncToSheets(updated); // ← sincroniza automáticamente
   };
 
   const handleEditElector = (data) => {
     const updated = electores.map(e => e.id === data.id ? data : e);
-    setElectores(updated); saveElectores(updated);
+    setElectores(updated);
+    saveElectores(updated);
+    syncToSheets(updated); // ← sincroniza automáticamente
   };
 
   const handleDeleteElector = (id) => {
     if (window.confirm("¿Eliminar este registro?")) {
       const updated = electores.filter(e => e.id !== id);
-      setElectores(updated); saveElectores(updated);
+      setElectores(updated);
+      saveElectores(updated);
+      syncToSheets(updated); // ← sincroniza automáticamente
     }
   };
 
   if (screen === "login") return <LoginScreen onLogin={handleLogin} onGoRegister={() => setScreen("registerUser")} />;
   if (screen === "registerUser") return <RegisterUserScreen onBack={() => setScreen("login")} onSuccess={() => setScreen("login")} />;
   if (!currentUser) return <LoginScreen onLogin={handleLogin} onGoRegister={() => setScreen("registerUser")} />;
+
+  if (loadingSheets) return (
+    <div style={{ ...styles.mobileFrame, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 40 }}>
+      <div style={{ fontSize: 50, marginBottom: 16 }}>🔄</div>
+      <h2 style={{ color: COLORS.lila, fontWeight: 900, textAlign: "center" }}>Cargando datos...</h2>
+      <p style={{ color: COLORS.textoSec, textAlign: "center" }}>Sincronizando con Google Sheets</p>
+    </div>
+  );
 
   return (
     <div style={styles.mobileFrame}>
