@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as XLSX from "xlsx";
 
 const COLORS = {
   lila: "#7C3AED", lilaLight: "#EDE9FE", lilaDark: "#5B21B6",
@@ -59,30 +60,27 @@ const RadioGroup = ({ value, onChange, options }) => (
   </div>
 );
 
-// ===================== EXPORTAR CSV CORREGIDO =====================
-// Usa tabulaciones en lugar de comas para que Excel abra cada campo en su propia columna
-// sin confundir comas dentro de los datos.
-const exportCSV = (electores) => {
-const exportCSV = (electores) => {
-  import("https://cdn.sheetjs.com/xlsx-0.20.1/package/xlsx.mjs").then(XLSX => {
-    const headers = [
-      "ID", "Fecha", "Usuario", "Nombre", "Cédula", "Teléfono",
-      "F.Nacimiento", "Dirección", "Barrio", "Comuna/Corregimiento",
-      "Género", "Líder", "Puesto de Votación", "Mesa",
-      "Intención de Voto", "Observaciones", "Latitud", "Longitud"
-    ];
-    const rows = electores.map(e => [
-      e.id, e.fecha, e.usuarioRegistro, e.nombre, e.cedula, e.telefono,
-      e.fechaNacimiento, e.direccion || "", e.barrio, e.comunaCorregimiento || "",
-      e.genero, e.lider, e.puestoVotacion, e.mesaVotacion,
-      e.intencion, e.observaciones || "", e.lat, e.lng
-    ]);
-    const wsData = [headers, ...rows];
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "BASE ELECTORAL");
-    XLSX.writeFile(wb, "base_electoral_robert_leyton.xlsx");
-  });
+// ===================== EXPORTAR EXCEL (.xlsx) =====================
+const exportExcel = (electores) => {
+  const headers = [
+    "ID", "Fecha", "Usuario", "Nombre", "Cédula", "Teléfono",
+    "F.Nacimiento", "Dirección", "Barrio", "Comuna/Corregimiento",
+    "Género", "Líder", "Puesto de Votación", "Mesa",
+    "Intención de Voto", "Observaciones", "Latitud", "Longitud"
+  ];
+  const rows = electores.map(e => [
+    e.id, e.fecha || "", e.usuarioRegistro || "",
+    e.nombre || "", e.cedula || "", e.telefono || "",
+    e.fechaNacimiento || "", e.direccion || "", e.barrio || "",
+    e.comunaCorregimiento || "", e.genero || "", e.lider || "",
+    e.puestoVotacion || "", e.mesaVotacion || "", e.intencion || "",
+    e.observaciones || "", e.lat || "", e.lng || ""
+  ]);
+  const wsData = [headers, ...rows];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "BASE ELECTORAL");
+  XLSX.writeFile(wb, "base_electoral_robert_leyton.xlsx");
 };
 
 // ===================== LOGIN =====================
@@ -644,21 +642,15 @@ function AdminScreen({ currentUser, electores, onBack }) {
   const barrios = [...new Set(electores.map(e => e.barrio))].map(b => ({ barrio: b, count: electores.filter(e => e.barrio === b).length })).sort((a, b) => b.count - a.count);
   const comunas = [...new Set(electores.map(e => e.comunaCorregimiento).filter(Boolean))].map(c => ({ comuna: c, count: electores.filter(e => e.comunaCorregimiento === c).length })).sort((a, b) => b.count - a.count);
 
-  // ── SINCRONIZAR CON GOOGLE SHEETS (CORREGIDO) ──────────────────────────────
-  // Envía los datos como un array de filas (arrays) para que el Apps Script
-  // pueda escribirlos directamente con setValues(). Ver el nuevo código de
-  // Apps Script en el panel de instrucciones.
   const syncSheets = async () => {
     if (!sheetsUrl) { setSheetsMsg("⚠️ Ingresa primero la URL del webhook"); return; }
     setSyncing(true); setSheetsMsg("");
-
     const headers = [
       "ID", "Fecha", "Usuario", "Nombre", "Cédula", "Teléfono",
       "F.Nacimiento", "Dirección", "Barrio", "Comuna/Corregimiento",
       "Género", "Líder", "Puesto de Votación", "Mesa",
       "Intención de Voto", "Observaciones", "Latitud", "Longitud"
     ];
-
     const rows = electores.map(e => [
       String(e.id), e.fecha || "", e.usuarioRegistro || "",
       e.nombre || "", e.cedula || "", e.telefono || "",
@@ -667,22 +659,15 @@ function AdminScreen({ currentUser, electores, onBack }) {
       e.puestoVotacion || "", e.mesaVotacion || "", e.intencion || "",
       e.observaciones || "", String(e.lat || ""), String(e.lng || "")
     ]);
-
     try {
-      const res = await fetch(sheetsUrl, {
+      await fetch(sheetsUrl, {
         method: "POST",
-        // No usar mode:"no-cors" para poder leer la respuesta
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ headers, rows }),
       });
-      // Apps Script redirige → fetch lanza error de red en modo cors.
-      // Si llega aquí sin lanzar, intentamos leer el texto.
-      const text = await res.text().catch(() => "ok");
       localStorage.setItem("sheets_url", sheetsUrl);
       setSheetsMsg("✅ Datos enviados. Revisa tu hoja de cálculo.");
     } catch (err) {
-      // Con mode:"no-cors" o redirección CORS, fetch lanza TypeError.
-      // Aun así el Apps Script recibió los datos, así que mostramos aviso.
       if (err instanceof TypeError) {
         localStorage.setItem("sheets_url", sheetsUrl);
         setSheetsMsg("✅ Solicitud enviada (sin confirmación por CORS). Revisa tu hoja.");
@@ -752,7 +737,6 @@ function AdminScreen({ currentUser, electores, onBack }) {
     </div>
   );
 
-  // ── CÓDIGO APPS SCRIPT ACTUALIZADO ────────────────────────────────────────
   const appsScriptCode = `function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
@@ -825,14 +809,12 @@ function AdminScreen({ currentUser, electores, onBack }) {
               </div>
             ))}
           </div>
-          <button style={styles.btnPrimary} onClick={() => exportCSV(electores)}>📥 Exportar a Excel (columnas separadas)</button>
+          <button style={styles.btnPrimary} onClick={() => exportExcel(electores)}>📥 Exportar a Excel (.xlsx)</button>
         </>}
 
         {tab === "sheets" && (
           <div style={styles.card}>
             <h4 style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 800, color: COLORS.lila }}>📤 CONECTAR CON GOOGLE SHEETS</h4>
-
-            {/* Instrucciones actualizadas */}
             <div style={{ background: COLORS.gris, borderRadius: 12, padding: 12, marginBottom: 14 }}>
               <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: COLORS.lila }}>PASO 1</p>
               <p style={{ margin: 0, fontSize: 12, color: COLORS.texto }}>Abre tu Google Sheet y crea una hoja llamada <strong>BASE ELECTORAL</strong>.</p>
@@ -851,7 +833,6 @@ function AdminScreen({ currentUser, electores, onBack }) {
               <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: COLORS.lila }}>PASO 3</p>
               <p style={{ margin: 0, fontSize: 12, color: COLORS.texto }}>En Apps Script: <strong>Implementar → Nueva implementación → Aplicación web</strong>. Ejecutar como: <em>Yo</em>. Acceso: <em>Cualquier persona</em>. Copia la URL que genera.</p>
             </div>
-
             <label style={styles.label}>URL del Webhook</label>
             <input style={styles.inputNormal} placeholder="https://script.google.com/macros/s/..." value={sheetsUrl} onChange={e => setSheetsUrl(e.target.value)} />
             {sheetsMsg && (
@@ -862,7 +843,7 @@ function AdminScreen({ currentUser, electores, onBack }) {
             <button style={{ ...styles.btnPrimary, opacity: syncing ? 0.7 : 1 }} onClick={syncSheets} disabled={syncing}>
               {syncing ? "⏳ Sincronizando..." : "🔄 Sincronizar con Google Sheets"}
             </button>
-            <button style={styles.btnSecondary} onClick={() => exportCSV(electores)}>📥 Exportar Excel (columnas separadas)</button>
+            <button style={styles.btnSecondary} onClick={() => exportExcel(electores)}>📥 Exportar Excel (.xlsx)</button>
           </div>
         )}
 
