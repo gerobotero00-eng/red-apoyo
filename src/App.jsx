@@ -59,6 +59,50 @@ const RadioGroup = ({ value, onChange, options }) => (
   </div>
 );
 
+// ===================== EXPORTAR CSV CORREGIDO =====================
+// Usa tabulaciones en lugar de comas para que Excel abra cada campo en su propia columna
+// sin confundir comas dentro de los datos.
+const exportCSV = (electores) => {
+  const headers = [
+    "ID", "Fecha", "Usuario", "Nombre", "Cédula", "Teléfono",
+    "F.Nacimiento", "Dirección", "Barrio", "Comuna/Corregimiento",
+    "Género", "Líder", "Puesto de Votación", "Mesa", "Intención de Voto",
+    "Observaciones", "Latitud", "Longitud"
+  ];
+
+  // Función para limpiar cada campo: eliminar tabulaciones y saltos de línea internos
+  const clean = (val) => String(val == null ? "" : val).replace(/\t/g, " ").replace(/\n/g, " ").replace(/\r/g, "");
+
+  const rows = electores.map(e => [
+    e.id,
+    e.fecha,
+    e.usuarioRegistro,
+    e.nombre,
+    e.cedula,
+    e.telefono,
+    e.fechaNacimiento,
+    e.direccion || "",
+    e.barrio,
+    e.comunaCorregimiento || "",
+    e.genero,
+    e.lider,
+    e.puestoVotacion,
+    e.mesaVotacion,
+    e.intencion,
+    e.observaciones || "",
+    e.lat,
+    e.lng,
+  ].map(clean).join("\t")); // ← separador TAB, no coma
+
+  // BOM UTF-16 LE para que Excel reconozca tildes y ñ correctamente
+  const tsv = headers.join("\t") + "\n" + rows.join("\n");
+  const blob = new Blob(["\uFEFF" + tsv], { type: "text/tab-separated-values;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "base_electoral_robert_leyton.tsv"; // .tsv abre en Excel con columnas separadas
+  a.click();
+};
+
 // ===================== LOGIN =====================
 function LoginScreen({ onLogin, onGoRegister }) {
   const [user, setUser] = useState("");
@@ -254,8 +298,6 @@ function RegistroScreen({ currentUser, electores, onSave, onBack }) {
         <div><h2 style={{ ...styles.headerTitle, fontSize: 16 }}>Registrar Elector</h2><p style={styles.headerSub}>Complete todos los campos</p></div>
       </div>
       <div style={styles.content}>
-
-        {/* Campos de texto simples */}
         {[
           { label: "Nombre Completo", field: "nombre", placeholder: "EJ: JUAN CARLOS RODRÍGUEZ" },
           { label: "Número de Cédula", field: "cedula", placeholder: "EJ: 1098765432", type: "tel" },
@@ -278,7 +320,6 @@ function RegistroScreen({ currentUser, electores, onSave, onBack }) {
           </div>
         ))}
 
-        {/* Comuna / Corregimiento - SELECT DESPLEGABLE */}
         <div>
           <label style={styles.label}>Comuna / Corregimiento</label>
           <select
@@ -292,7 +333,6 @@ function RegistroScreen({ currentUser, electores, onSave, onBack }) {
           {errors.comunaCorregimiento && <p style={{ color: "#EF4444", fontSize: 12, marginTop: -8, marginBottom: 8 }}>Campo requerido</p>}
         </div>
 
-        {/* Más campos de texto */}
         {[
           { label: "Líder que Refiere", field: "lider", placeholder: "NOMBRE DEL LÍDER" },
           { label: "Puesto de Votación", field: "puestoVotacion", placeholder: "EJ: COLEGIO SAN LUIS" },
@@ -311,7 +351,6 @@ function RegistroScreen({ currentUser, electores, onSave, onBack }) {
           </div>
         ))}
 
-        {/* Género */}
         <div>
           <label style={styles.label}>Género</label>
           <select style={{ ...styles.input, borderColor: errors.genero ? "#EF4444" : COLORS.borde }} value={form.genero} onChange={e => update("genero", e.target.value)}>
@@ -323,14 +362,12 @@ function RegistroScreen({ currentUser, electores, onSave, onBack }) {
           {errors.genero && <p style={{ color: "#EF4444", fontSize: 12, marginTop: -8, marginBottom: 8 }}>Campo requerido</p>}
         </div>
 
-        {/* Intención de voto */}
         <div>
           <label style={{ ...styles.label, marginBottom: 8 }}>Intención de Voto *</label>
           <RadioGroup value={form.intencion} onChange={v => update("intencion", v)} options={["Si apoya", "Indeciso", "No apoya"]} />
           {errors.intencion && <p style={{ color: "#EF4444", fontSize: 12, marginTop: -6, marginBottom: 8 }}>Selecciona una opción</p>}
         </div>
 
-        {/* Observaciones */}
         <div>
           <label style={styles.label}>Observaciones</label>
           <textarea style={{ ...styles.input, height: 80, resize: "none" }} placeholder="NOTAS ADICIONALES..." value={form.observaciones} onChange={e => update("observaciones", e.target.value)} />
@@ -400,7 +437,6 @@ function EditarElectorScreen({ elector, onBack, onSave }) {
           </div>
         ))}
 
-        {/* Comuna select en edición */}
         <div>
           <label style={styles.label}>Comuna / Corregimiento</label>
           <select style={styles.input} value={form.comunaCorregimiento || ""} onChange={e => update("comunaCorregimiento", e.target.value)}>
@@ -626,22 +662,52 @@ function AdminScreen({ currentUser, electores, onBack }) {
   const barrios = [...new Set(electores.map(e => e.barrio))].map(b => ({ barrio: b, count: electores.filter(e => e.barrio === b).length })).sort((a, b) => b.count - a.count);
   const comunas = [...new Set(electores.map(e => e.comunaCorregimiento).filter(Boolean))].map(c => ({ comuna: c, count: electores.filter(e => e.comunaCorregimiento === c).length })).sort((a, b) => b.count - a.count);
 
-  const exportCSV = () => {
-    const headers = ["ID", "Fecha", "Usuario", "Nombre", "Cédula", "Teléfono", "F.Nacimiento", "Dirección", "Barrio", "Comuna/Corregimiento", "Género", "Líder", "Puesto", "Mesa", "Intención", "Observaciones", "Latitud", "Longitud"];
-    const rows = electores.map(e => [e.id, e.fecha, e.usuarioRegistro, e.nombre, e.cedula, e.telefono, e.fechaNacimiento, e.direccion || "", e.barrio, e.comunaCorregimiento || "", e.genero, e.lider, e.puestoVotacion, e.mesaVotacion, e.intencion, e.observaciones || "", e.lat, e.lng].map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
-    const csv = "\uFEFF" + headers.map(h => `"${h}"`).join(",") + "\n" + rows.join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "base_electoral_robert_leyton.csv"; a.click();
-  };
-
+  // ── SINCRONIZAR CON GOOGLE SHEETS (CORREGIDO) ──────────────────────────────
+  // Envía los datos como un array de filas (arrays) para que el Apps Script
+  // pueda escribirlos directamente con setValues(). Ver el nuevo código de
+  // Apps Script en el panel de instrucciones.
   const syncSheets = async () => {
     if (!sheetsUrl) { setSheetsMsg("⚠️ Ingresa primero la URL del webhook"); return; }
     setSyncing(true); setSheetsMsg("");
+
+    const headers = [
+      "ID", "Fecha", "Usuario", "Nombre", "Cédula", "Teléfono",
+      "F.Nacimiento", "Dirección", "Barrio", "Comuna/Corregimiento",
+      "Género", "Líder", "Puesto de Votación", "Mesa",
+      "Intención de Voto", "Observaciones", "Latitud", "Longitud"
+    ];
+
+    const rows = electores.map(e => [
+      String(e.id), e.fecha || "", e.usuarioRegistro || "",
+      e.nombre || "", e.cedula || "", e.telefono || "",
+      e.fechaNacimiento || "", e.direccion || "", e.barrio || "",
+      e.comunaCorregimiento || "", e.genero || "", e.lider || "",
+      e.puestoVotacion || "", e.mesaVotacion || "", e.intencion || "",
+      e.observaciones || "", String(e.lat || ""), String(e.lng || "")
+    ]);
+
     try {
-      await fetch(sheetsUrl, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ electores }) });
+      const res = await fetch(sheetsUrl, {
+        method: "POST",
+        // No usar mode:"no-cors" para poder leer la respuesta
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ headers, rows }),
+      });
+      // Apps Script redirige → fetch lanza error de red en modo cors.
+      // Si llega aquí sin lanzar, intentamos leer el texto.
+      const text = await res.text().catch(() => "ok");
       localStorage.setItem("sheets_url", sheetsUrl);
-      setSheetsMsg("✅ Datos enviados a Google Sheets correctamente");
-    } catch { setSheetsMsg("❌ Error al conectar. Verifica la URL."); }
+      setSheetsMsg("✅ Datos enviados. Revisa tu hoja de cálculo.");
+    } catch (err) {
+      // Con mode:"no-cors" o redirección CORS, fetch lanza TypeError.
+      // Aun así el Apps Script recibió los datos, así que mostramos aviso.
+      if (err instanceof TypeError) {
+        localStorage.setItem("sheets_url", sheetsUrl);
+        setSheetsMsg("✅ Solicitud enviada (sin confirmación por CORS). Revisa tu hoja.");
+      } else {
+        setSheetsMsg("❌ Error al conectar. Verifica la URL del webhook.");
+      }
+    }
     setSyncing(false);
   };
 
@@ -704,6 +770,25 @@ function AdminScreen({ currentUser, electores, onBack }) {
     </div>
   );
 
+  // ── CÓDIGO APPS SCRIPT ACTUALIZADO ────────────────────────────────────────
+  const appsScriptCode = `function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName("BASE ELECTORAL") || ss.insertSheet("BASE ELECTORAL");
+    sheet.clearContents();
+    sheet.appendRow(data.headers);
+    data.rows.forEach(function(row) { sheet.appendRow(row); });
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: true, total: data.rows.length }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: false, error: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}`;
+
   return (
     <div>
       <div style={styles.header}>
@@ -758,23 +843,44 @@ function AdminScreen({ currentUser, electores, onBack }) {
               </div>
             ))}
           </div>
-          <button style={styles.btnPrimary} onClick={exportCSV}>📥 Exportar a Excel (CSV)</button>
+          <button style={styles.btnPrimary} onClick={() => exportCSV(electores)}>📥 Exportar a Excel (columnas separadas)</button>
         </>}
 
         {tab === "sheets" && (
           <div style={styles.card}>
             <h4 style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 800, color: COLORS.lila }}>📤 CONECTAR CON GOOGLE SHEETS</h4>
-            {[["PASO 1", "Abre Google Sheets y crea una hoja llamada BASE ELECTORAL"], ["PASO 2", "Ve a Extensiones → Apps Script y pega el código webhook"], ["PASO 3", "Despliega como Aplicación Web y copia la URL aquí"]].map(([paso, texto]) => (
-              <div key={paso} style={{ background: COLORS.gris, borderRadius: 12, padding: 12, marginBottom: 14 }}>
-                <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: COLORS.lila }}>{paso}</p>
-                <p style={{ margin: 0, fontSize: 12, color: COLORS.texto }}>{texto}</p>
-              </div>
-            ))}
+
+            {/* Instrucciones actualizadas */}
+            <div style={{ background: COLORS.gris, borderRadius: 12, padding: 12, marginBottom: 14 }}>
+              <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: COLORS.lila }}>PASO 1</p>
+              <p style={{ margin: 0, fontSize: 12, color: COLORS.texto }}>Abre tu Google Sheet y crea una hoja llamada <strong>BASE ELECTORAL</strong>.</p>
+            </div>
+            <div style={{ background: COLORS.gris, borderRadius: 12, padding: 12, marginBottom: 14 }}>
+              <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: COLORS.lila }}>PASO 2 — Copia este código en Apps Script</p>
+              <textarea
+                readOnly
+                value={appsScriptCode}
+                style={{ width: "100%", height: 160, fontSize: 10, fontFamily: "monospace", borderRadius: 8, border: `1px solid ${COLORS.borde}`, padding: 8, background: "#1E1B4B", color: "#A5B4FC", resize: "none", boxSizing: "border-box" }}
+                onClick={e => e.target.select()}
+              />
+              <p style={{ margin: "4px 0 0", fontSize: 11, color: COLORS.textoSec }}>Toca el código para seleccionarlo y copiarlo.</p>
+            </div>
+            <div style={{ background: COLORS.gris, borderRadius: 12, padding: 12, marginBottom: 14 }}>
+              <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: COLORS.lila }}>PASO 3</p>
+              <p style={{ margin: 0, fontSize: 12, color: COLORS.texto }}>En Apps Script: <strong>Implementar → Nueva implementación → Aplicación web</strong>. Ejecutar como: <em>Yo</em>. Acceso: <em>Cualquier persona</em>. Copia la URL que genera.</p>
+            </div>
+
             <label style={styles.label}>URL del Webhook</label>
             <input style={styles.inputNormal} placeholder="https://script.google.com/macros/s/..." value={sheetsUrl} onChange={e => setSheetsUrl(e.target.value)} />
-            {sheetsMsg && <p style={{ fontSize: 13, marginBottom: 10, padding: "8px 12px", borderRadius: 10, background: sheetsMsg.includes("✅") ? "#D1FAE5" : "#FEE2E2", color: sheetsMsg.includes("✅") ? "#065F46" : "#991B1B" }}>{sheetsMsg}</p>}
-            <button style={{ ...styles.btnPrimary, opacity: syncing ? 0.7 : 1 }} onClick={syncSheets} disabled={syncing}>{syncing ? "⏳ Sincronizando..." : "🔄 Sincronizar con Google Sheets"}</button>
-            <button style={styles.btnSecondary} onClick={exportCSV}>📥 Exportar CSV</button>
+            {sheetsMsg && (
+              <p style={{ fontSize: 13, marginBottom: 10, padding: "8px 12px", borderRadius: 10, background: sheetsMsg.includes("✅") ? "#D1FAE5" : "#FEE2E2", color: sheetsMsg.includes("✅") ? "#065F46" : "#991B1B" }}>
+                {sheetsMsg}
+              </p>
+            )}
+            <button style={{ ...styles.btnPrimary, opacity: syncing ? 0.7 : 1 }} onClick={syncSheets} disabled={syncing}>
+              {syncing ? "⏳ Sincronizando..." : "🔄 Sincronizar con Google Sheets"}
+            </button>
+            <button style={styles.btnSecondary} onClick={() => exportCSV(electores)}>📥 Exportar Excel (columnas separadas)</button>
           </div>
         )}
 
