@@ -63,44 +63,26 @@ const RadioGroup = ({ value, onChange, options }) => (
 // Usa tabulaciones en lugar de comas para que Excel abra cada campo en su propia columna
 // sin confundir comas dentro de los datos.
 const exportCSV = (electores) => {
-  const headers = [
-    "ID", "Fecha", "Usuario", "Nombre", "Cédula", "Teléfono",
-    "F.Nacimiento", "Dirección", "Barrio", "Comuna/Corregimiento",
-    "Género", "Líder", "Puesto de Votación", "Mesa", "Intención de Voto",
-    "Observaciones", "Latitud", "Longitud"
-  ];
-
-  // Función para limpiar cada campo: eliminar tabulaciones y saltos de línea internos
-  const clean = (val) => String(val == null ? "" : val).replace(/\t/g, " ").replace(/\n/g, " ").replace(/\r/g, "");
-
-  const rows = electores.map(e => [
-    e.id,
-    e.fecha,
-    e.usuarioRegistro,
-    e.nombre,
-    e.cedula,
-    e.telefono,
-    e.fechaNacimiento,
-    e.direccion || "",
-    e.barrio,
-    e.comunaCorregimiento || "",
-    e.genero,
-    e.lider,
-    e.puestoVotacion,
-    e.mesaVotacion,
-    e.intencion,
-    e.observaciones || "",
-    e.lat,
-    e.lng,
-  ].map(clean).join("\t")); // ← separador TAB, no coma
-
-  // BOM UTF-16 LE para que Excel reconozca tildes y ñ correctamente
-  const tsv = headers.join("\t") + "\n" + rows.join("\n");
-  const blob = new Blob(["\uFEFF" + tsv], { type: "text/tab-separated-values;charset=utf-8" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "base_electoral_robert_leyton.tsv"; // .tsv abre en Excel con columnas separadas
-  a.click();
+const exportCSV = (electores) => {
+  import("https://cdn.sheetjs.com/xlsx-0.20.1/package/xlsx.mjs").then(XLSX => {
+    const headers = [
+      "ID", "Fecha", "Usuario", "Nombre", "Cédula", "Teléfono",
+      "F.Nacimiento", "Dirección", "Barrio", "Comuna/Corregimiento",
+      "Género", "Líder", "Puesto de Votación", "Mesa",
+      "Intención de Voto", "Observaciones", "Latitud", "Longitud"
+    ];
+    const rows = electores.map(e => [
+      e.id, e.fecha, e.usuarioRegistro, e.nombre, e.cedula, e.telefono,
+      e.fechaNacimiento, e.direccion || "", e.barrio, e.comunaCorregimiento || "",
+      e.genero, e.lider, e.puestoVotacion, e.mesaVotacion,
+      e.intencion, e.observaciones || "", e.lat, e.lng
+    ]);
+    const wsData = [headers, ...rows];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "BASE ELECTORAL");
+    XLSX.writeFile(wb, "base_electoral_robert_leyton.xlsx");
+  });
 };
 
 // ===================== LOGIN =====================
