@@ -9,7 +9,7 @@ const COLORS = {
 
 const STORAGE_KEY = "red_apoyo_users";
 const ELECTORES_KEY = "red_apoyo_electores";
-const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwGloFDCZB_XYw0okRQoBqHgQdsdhvHHK342U-MWhkzT-mM9UHIwGEvjEbSjaPbhJyD/exec";
+const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwLUl0WRDcGxMjsvrFXMCKsAHRrjd4rFoq4Tsi7I7hRKUNkmwNX4gVuAS-kmChIshI/exec";
 
 const HEADERS_SHEETS = [
   "ID","Fecha","Usuario","Nombre","Cédula","Teléfono","F.Nacimiento",
