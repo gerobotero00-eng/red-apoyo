@@ -45,7 +45,7 @@ const rowToUser = (obj) => ({
 const postToSheets = async (sheetName, headers, rows) => {
   try {
     await fetch(SHEETS_URL, {
-      method:"POST", headers:{"Content-Type":"application/json"},
+      method:"POST", mode:"no-cors",
       body: JSON.stringify({ sheet: sheetName, headers, rows }),
     });
   } catch(_) {}
