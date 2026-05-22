@@ -161,13 +161,27 @@ const exportExcel = (electores) => {
 // ===================== LOGIN =====================
 function LoginScreen({ onLogin, onGoRegister }) {
   const [user,setUser]=useState(""); const [pass,setPass]=useState(""); const [error,setError]=useState(""); const [loading,setLoading]=useState(false);
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setLoading(true);
-    setTimeout(() => {
-      const users=getUsers();
-      const found=users.find(u=>u.username.toLowerCase()===user.toLowerCase()&&u.password===pass&&u.activo);
-      if(found){onLogin(found);}else{setError("Usuario o contraseña incorrectos");setLoading(false);}
-    },800);
+    let users = getUsers();
+    let found = users.find(u=>u.username.toLowerCase()===user.toLowerCase()&&u.password===pass&&u.activo);
+    if(!found) {
+      try {
+        const sheetUsers = await getFromSheets("USUARIOS");
+        if(sheetUsers && sheetUsers.length > 0) {
+          const admins = users.filter(u=>u.role==="admin");
+          const lideres = sheetUsers.map(rowToUser);
+          const merged = [...admins];
+          lideres.forEach(sl => {
+            if(!merged.find(u=>u.username===sl.username)) merged.push(sl);
+            else { const idx=merged.findIndex(u=>u.username===sl.username); if(merged[idx].role!=="admin") merged[idx]={...merged[idx],...sl,password:sl.password}; }
+          });
+          saveUsers(merged);
+          found = merged.find(u=>u.username.toLowerCase()===user.toLowerCase()&&u.password===pass&&u.activo);
+        }
+      } catch(_) {}
+    }
+    if(found){onLogin(found);}else{setError("Usuario o contraseña incorrectos");setLoading(false);}
   };
   return (
     <div style={{ ...styles.mobileFrame, display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", padding:"40px 24px" }}>
@@ -402,7 +416,16 @@ function AdminScreen({ currentUser, electores, users, onBack, onUsersUpdate }) {
   const handleSync=async()=>{
     setSyncing(true);setSheetsMsg("");
     try{
-      await syncElectores(electores);
+      // Primero descarga lo que hay en Sheets para no borrar datos de otros lideres
+      const sheetElectores = await getFromSheets("BASE ELECTORAL");
+      let todosElectores = [...electores];
+      if(sheetElectores && sheetElectores.length > 0) {
+        const parsed = sheetElectores.map(rowToElector);
+        parsed.forEach(se => {
+          if(!todosElectores.find(e=>String(e.id)===String(se.id))) todosElectores.push(se);
+        });
+      }
+      await syncElectores(todosElectores);
       await syncUsuariosFull(users);
       setSheetsMsg("✅ Todo sincronizado correctamente con Google Sheets.");
     }catch{
