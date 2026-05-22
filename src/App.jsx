@@ -10,11 +10,12 @@ const COLORS = {
 const STORAGE_KEY = "red_apoyo_users";
 const ELECTORES_KEY = "red_apoyo_electores";
 
-// ✅ URL ACTUALIZADA
 const SHEETS_URL = "https://script.google.com/macros/s/AKfycbx6yuhDP_Li0tm4beio9FJSiWUUfgrLT5b1FDrzIpfA_sQnbK3XCYdNWYf9zQCpe1WD/exec";
 
 const HEADERS_ELECTORES = ["ID","Fecha","Usuario","Nombre","Cédula","Teléfono","F.Nacimiento","Dirección","Barrio","Comuna/Corregimiento","Género","Líder","Puesto de Votación","Mesa","Intención de Voto","Observaciones","Latitud","Longitud"];
-const HEADERS_USUARIOS = ["ID","Username","Nombre","Email","Rol","Activo","FechaRegistro"];
+
+// ✅ CAMBIO 1: Se agregó "Password" al final de los headers
+const HEADERS_USUARIOS = ["ID","Username","Nombre","Email","Rol","Activo","FechaRegistro","Password"];
 
 const electorToRow = (e) => [String(e.id),e.fecha||"",e.usuarioRegistro||"",e.nombre||"",e.cedula||"",e.telefono||"",e.fechaNacimiento||"",e.direccion||"",e.barrio||"",e.comunaCorregimiento||"",e.genero||"",e.lider||"",e.puestoVotacion||"",e.mesaVotacion||"",e.intencion||"",e.observaciones||"",String(e.lat||""),String(e.lng||"")];
 
@@ -28,7 +29,8 @@ const rowToElector = (obj) => ({
   lat:parseFloat(obj["Latitud"])||4.4389, lng:parseFloat(obj["Longitud"])||-75.2322,
 });
 
-const userToRow = (u) => [String(u.id),u.username||"",u.nombre||"",u.email||"",u.role||"lider",String(u.activo),u.fechaRegistro||""];
+// ✅ CAMBIO 2: Se agregó u.password al final de la fila
+const userToRow = (u) => [String(u.id),u.username||"",u.nombre||"",u.email||"",u.role||"lider",String(u.activo),u.fechaRegistro||"",u.password||""];
 
 const rowToUser = (obj) => ({
   id: Number(obj["ID"])||Date.now(),
@@ -41,7 +43,6 @@ const rowToUser = (obj) => ({
   fechaRegistro: obj["FechaRegistro"]||"",
 });
 
-// ✅ UPSERT: agrega o actualiza UNA fila sin borrar las demás
 const upsertToSheets = async (sheetName, headers, row) => {
   try {
     await fetch(SHEETS_URL, {
@@ -52,7 +53,6 @@ const upsertToSheets = async (sheetName, headers, row) => {
   } catch(_) {}
 };
 
-// ✅ DELETE: elimina una fila por ID
 const deleteFromSheets = async (sheetName, id) => {
   try {
     await fetch(SHEETS_URL, {
@@ -63,7 +63,6 @@ const deleteFromSheets = async (sheetName, id) => {
   } catch(_) {}
 };
 
-// ✅ SYNC COMPLETO: reemplaza toda la hoja (solo para sincronización manual del admin)
 const syncFullSheet = async (sheetName, headers, rows) => {
   try {
     await fetch(SHEETS_URL, {
@@ -74,7 +73,6 @@ const syncFullSheet = async (sheetName, headers, rows) => {
   } catch(_) {}
 };
 
-// ✅ GET: lee todos los datos de una hoja
 const getFromSheets = async (sheetName) => {
   try {
     const res = await fetch(`${SHEETS_URL}?sheet=${encodeURIComponent(sheetName)}&t=${Date.now()}`);
@@ -84,12 +82,11 @@ const getFromSheets = async (sheetName) => {
   return null;
 };
 
-const upsertElector  = (e)       => upsertToSheets("BASE ELECTORAL", HEADERS_ELECTORES, electorToRow(e));
-const deleteElector  = (id)      => deleteFromSheets("BASE ELECTORAL", id);
-const syncElectores  = (list)    => syncFullSheet("BASE ELECTORAL", HEADERS_ELECTORES, list.map(electorToRow));
-const syncUsuarios   = (users)   => upsertToSheets("USUARIOS", HEADERS_USUARIOS, null); // no-op placeholder
-const syncUsuariosFull = (users) => syncFullSheet("USUARIOS", HEADERS_USUARIOS, users.filter(u=>u.role!=="admin").map(userToRow));
-const upsertUsuario  = (u)       => upsertToSheets("USUARIOS", HEADERS_USUARIOS, userToRow(u));
+const upsertElector    = (e)    => upsertToSheets("BASE ELECTORAL", HEADERS_ELECTORES, electorToRow(e));
+const deleteElector    = (id)   => deleteFromSheets("BASE ELECTORAL", id);
+const syncElectores    = (list) => syncFullSheet("BASE ELECTORAL", HEADERS_ELECTORES, list.map(electorToRow));
+const syncUsuariosFull = (users)=> syncFullSheet("USUARIOS", HEADERS_USUARIOS, users.filter(u=>u.role!=="admin").map(userToRow));
+const upsertUsuario    = (u)    => upsertToSheets("USUARIOS", HEADERS_USUARIOS, userToRow(u));
 
 const DEFAULT_USERS = [
   { id: 1, username: "admin",  password: "admin123",  role: "admin",  nombre: "Administrador", email: "admin@redapoyo.com",  activo: true },
@@ -172,9 +169,13 @@ function LoginScreen({ onLogin, onGoRegister }) {
           const admins = users.filter(u=>u.role==="admin");
           const lideres = sheetUsers.map(rowToUser);
           const merged = [...admins];
+          // ✅ CAMBIO 3: Usa la contraseña de Sheets si existe, si no usa la local
           lideres.forEach(sl => {
             if(!merged.find(u=>u.username===sl.username)) merged.push(sl);
-            else { const idx=merged.findIndex(u=>u.username===sl.username); if(merged[idx].role!=="admin") merged[idx]={...merged[idx],...sl,password:sl.password}; }
+            else {
+              const idx=merged.findIndex(u=>u.username===sl.username);
+              if(merged[idx].role!=="admin") merged[idx]={...merged[idx],...sl,password:sl.password||merged[idx].password};
+            }
           });
           saveUsers(merged);
           found = merged.find(u=>u.username.toLowerCase()===user.toLowerCase()&&u.password===pass&&u.activo);
@@ -383,8 +384,8 @@ function RegistrosScreen({ currentUser, electores, onBack, onDelete, onEdit }) {
 // ===================== CAMBIAR CONTRASEÑA =====================
 function CambiarPasswordScreen({ currentUser, onBack, onUpdate }) {
   const [form,setForm]=useState({actual:"",nueva:"",confirmar:""}); const [error,setError]=useState(""); const [success,setSuccess]=useState(false);
-  const handleCambiar=()=>{setError("");if(!form.actual||!form.nueva||!form.confirmar){setError("Todos los campos son obligatorios");return;}const users=getUsers();const user=users.find(u=>u.id===currentUser.id);if(user.password!==form.actual){setError("La contraseña actual es incorrecta");return;}if(form.nueva.length<6){setError("La nueva contraseña debe tener mínimo 6 caracteres");return;}if(form.nueva!==form.confirmar){setError("Las contraseñas nuevas no coinciden");return;}const updated=users.map(u=>u.id===currentUser.id?{...u,password:form.nueva}:u);saveUsers(updated);onUpdate({...currentUser,password:form.nueva});setSuccess(true);};
-  if(success) return (<div style={{ ...styles.mobileFrame, display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", padding:40 }}><div style={{ fontSize:60, marginBottom:16 }}>✅</div><h2 style={{ color:"#7C3AED", fontWeight:900, textAlign:"center" }}>¡Contraseña Actualizada!</h2><button style={{ ...styles.btnPrimary, marginTop:20, width:"auto", padding:"12px 30px" }} onClick={onBack}>Volver</button></div>);
+  const handleCambiar=()=>{setError("");if(!form.actual||!form.nueva||!form.confirmar){setError("Todos los campos son obligatorios");return;}const users=getUsers();const user=users.find(u=>u.id===currentUser.id);if(user.password!==form.actual){setError("La contraseña actual es incorrecta");return;}if(form.nueva.length<6){setError("La nueva contraseña debe tener mínimo 6 caracteres");return;}if(form.nueva!==form.confirmar){setError("Las contraseñas nuevas no coinciden");return;}const updatedUser={...user,password:form.nueva};const updated=users.map(u=>u.id===currentUser.id?updatedUser:u);saveUsers(updated);upsertUsuario(updatedUser);onUpdate(updatedUser);setSuccess(true);};
+  if(success) return (<div style={{ ...styles.mobileFrame, display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", padding:40 }}><div style={{ fontSize:60, marginBottom:16 }}>✅</div><h2 style={{ color:"#7C3AED", fontWeight:900, textAlign:"center" }}>¡Contraseña Actualizada!</h2><p style={{ color:"#6B7280", textAlign:"center" }}>La nueva contraseña ya está guardada en Sheets.</p><button style={{ ...styles.btnPrimary, marginTop:20, width:"auto", padding:"12px 30px" }} onClick={onBack}>Volver</button></div>);
   return (
     <div>
       <div style={styles.header}><button onClick={onBack} style={{ background:"none", border:"none", color:"#FFF", fontSize:22, cursor:"pointer" }}>←</button><div><h2 style={{ ...styles.headerTitle, fontSize:16 }}>Cambiar Contraseña</h2><p style={styles.headerSub}>{currentUser.nombre}</p></div></div>
@@ -417,7 +418,6 @@ function AdminScreen({ currentUser, electores, users, onBack, onUsersUpdate }) {
   const handleSync=async()=>{
     setSyncing(true);setSheetsMsg("");
     try{
-      // Primero descarga lo que hay en Sheets para no borrar datos de otros lideres
       const sheetElectores = await getFromSheets("BASE ELECTORAL");
       let todosElectores = [...electores];
       if(sheetElectores && sheetElectores.length > 0) {
@@ -463,11 +463,7 @@ function AdminScreen({ currentUser, electores, users, onBack, onUsersUpdate }) {
     });
     onUsersUpdate(updated);
     const editedUser=updated.find(u=>u.id===editingUser);
-    // Subir a Sheets incluyendo la nueva contraseña para que funcione en todos los dispositivos
-    if(editedUser&&editedUser.role!=="admin"){
-      const rowConPassword=[String(editedUser.id),editedUser.username||"",editedUser.nombre||"",editedUser.email||"",editedUser.role||"lider",String(editedUser.activo),editedUser.fechaRegistro||"",editedUser.password||""];
-      fetch(SHEETS_URL,{method:"POST",mode:"no-cors",body:JSON.stringify({sheet:"USUARIOS",headers:[...HEADERS_USUARIOS,"Password"],mode:"upsert",row:rowConPassword})});
-    }
+    if(editedUser&&editedUser.role!=="admin") upsertUsuario(editedUser);
     setEditingUser(null);
   };
 
@@ -539,7 +535,7 @@ function AdminScreen({ currentUser, electores, users, onBack, onUsersUpdate }) {
             <h4 style={{ margin:"0 0 8px", fontSize:14, fontWeight:800, color:"#7C3AED" }}>📤 GOOGLE SHEETS</h4>
             <div style={{ background:"#D1FAE5", borderRadius:12, padding:12, marginBottom:14 }}>
               <p style={{ margin:0, fontSize:13, color:"#065F46", fontWeight:700 }}>✅ Sincronización automática activa</p>
-              <p style={{ margin:"4px 0 0", fontSize:12, color:"#065F46" }}>Cada registro nuevo se envía a Sheets sin borrar los de otros líderes. Usa el botón solo si necesitas forzar una sincronización completa.</p>
+              <p style={{ margin:"4px 0 0", fontSize:12, color:"#065F46" }}>Cada registro nuevo se envía a Sheets incluyendo contraseñas. Usa el botón solo si necesitas forzar una sincronización completa.</p>
             </div>
             {sheetsMsg&&<p style={{ fontSize:13, marginBottom:10, padding:"8px 12px", borderRadius:10, background:sheetsMsg.includes("✅")?"#D1FAE5":"#FEF3C7", color:sheetsMsg.includes("✅")?"#065F46":"#92400E" }}>{sheetsMsg}</p>}
             <button style={{ ...styles.btnPrimary, opacity:syncing?0.7:1 }} onClick={handleSync} disabled={syncing}>{syncing?"⏳ Sincronizando...":"🔄 Sincronizar todo con Sheets"}</button>
@@ -601,7 +597,6 @@ export default function App() {
   const [users,setUsers]=useState(getUsers());
   const [loading,setLoading]=useState(false);
 
-  // Al iniciar sesión carga datos frescos de Sheets
   useEffect(()=>{
     if(currentUser){
       setLoading(true);
@@ -613,18 +608,20 @@ export default function App() {
           const parsed=sheetElectores.map(rowToElector);
           setElectores(parsed); saveElectores(parsed);
         }
-        // Siempre mergear: mantener admins locales + todos los lideres de Sheets
         const localUsers=getUsers();
         const admins=localUsers.filter(u=>u.role==="admin");
         const merged=[...admins];
         if(sheetUsers&&sheetUsers.length>0){
           const sheetLideres=sheetUsers.map(rowToUser);
+          // ✅ CAMBIO 4: Usa la contraseña de Sheets si existe
           sheetLideres.forEach(sl=>{
             if(!merged.find(u=>u.username===sl.username)) merged.push(sl);
-            else{ const idx=merged.findIndex(u=>u.username===sl.username); if(merged[idx].role!=="admin") merged[idx]={...merged[idx],...sl,password:merged[idx].password}; }
+            else{
+              const idx=merged.findIndex(u=>u.username===sl.username);
+              if(merged[idx].role!=="admin") merged[idx]={...merged[idx],...sl,password:sl.password||merged[idx].password};
+            }
           });
         }
-        // Tambien incluir lideres locales que no esten en Sheets aun
         localUsers.filter(u=>u.role!=="admin").forEach(lu=>{
           if(!merged.find(u=>u.username===lu.username)) merged.push(lu);
         });
@@ -634,7 +631,7 @@ export default function App() {
     }
   },[currentUser]);
 
-  const handleLogin =(user)=>{ setCurrentUser(user); setScreen("inicio"); };
+  const handleLogin=(user)=>{ setCurrentUser(user); setScreen("inicio"); };
 
   const recargarDesdeSheets = async () => {
     setLoading(true);
@@ -652,9 +649,13 @@ export default function App() {
       const merged = [...admins];
       if(sheetUsers && sheetUsers.length > 0){
         const sheetLideres = sheetUsers.map(rowToUser);
+        // ✅ CAMBIO 5: Usa la contraseña de Sheets si existe
         sheetLideres.forEach(sl=>{
           if(!merged.find(u=>u.username===sl.username)) merged.push(sl);
-          else{ const idx=merged.findIndex(u=>u.username===sl.username); if(merged[idx].role!=="admin") merged[idx]={...merged[idx],...sl,password:merged[idx].password}; }
+          else{
+            const idx=merged.findIndex(u=>u.username===sl.username);
+            if(merged[idx].role!=="admin") merged[idx]={...merged[idx],...sl,password:sl.password||merged[idx].password};
+          }
         });
       }
       localUsers.filter(u=>u.role!=="admin").forEach(lu=>{
@@ -664,9 +665,9 @@ export default function App() {
     } catch(_) {}
     setLoading(false);
   };
+
   const handleLogout=()=>{ setCurrentUser(null); setScreen("login"); };
 
-  // ✅ upsert: agrega sin borrar registros de otros líderes
   const handleSaveElector  =(data)=>{ const u=[...electores,data]; setElectores(u); saveElectores(u); upsertElector(data); };
   const handleEditElector  =(data)=>{ const u=electores.map(e=>e.id===data.id?data:e); setElectores(u); saveElectores(u); upsertElector(data); };
   const handleDeleteElector=(id)  =>{ if(window.confirm("¿Eliminar este registro?")){ const u=electores.filter(e=>e.id!==id); setElectores(u); saveElectores(u); deleteElector(id); } };
