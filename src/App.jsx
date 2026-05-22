@@ -46,7 +46,7 @@ const upsertToSheets = async (sheetName, headers, row) => {
   try {
     await fetch(SHEETS_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      mode: "no-cors",
       body: JSON.stringify({ sheet: sheetName, headers, mode: "upsert", row }),
     });
   } catch(_) {}
@@ -57,7 +57,7 @@ const deleteFromSheets = async (sheetName, id) => {
   try {
     await fetch(SHEETS_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      mode: "no-cors",
       body: JSON.stringify({ sheet: sheetName, mode: "delete", id: String(id) }),
     });
   } catch(_) {}
@@ -68,7 +68,7 @@ const syncFullSheet = async (sheetName, headers, rows) => {
   try {
     await fetch(SHEETS_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      mode: "no-cors",
       body: JSON.stringify({ sheet: sheetName, headers, rows }),
     });
   } catch(_) {}
@@ -627,4 +627,4 @@ export default function App() {
       </div>
     </div>
   );
-} 
+}
