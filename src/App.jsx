@@ -10,8 +10,8 @@ const COLORS = {
 const STORAGE_KEY = "red_apoyo_users";
 const ELECTORES_KEY = "red_apoyo_electores";
 
-// ✅ URL NUEVA Y CORRECTA del Apps Script
-const SHEETS_URL = "https://script.google.com/macros/s/AKfycbyHT90Z51bRe0dDfZQBazu78cUptNJufClidgOwka1ctvnXCewBx_uKTYPrbzfJsVdl/exec";
+// ✅ URL ACTUALIZADA
+const SHEETS_URL = "https://script.google.com/macros/s/AKfycbx6yuhDP_Li0tm4beio9FJSiWUUfgrLT5b1FDrzIpfA_sQnbK3XCYdNWYf9zQCpe1WD/exec";
 
 const HEADERS_ELECTORES = ["ID","Fecha","Usuario","Nombre","Cédula","Teléfono","F.Nacimiento","Dirección","Barrio","Comuna/Corregimiento","Género","Líder","Puesto de Votación","Mesa","Intención de Voto","Observaciones","Latitud","Longitud"];
 const HEADERS_USUARIOS = ["ID","Username","Nombre","Email","Rol","Activo","FechaRegistro"];
@@ -41,17 +41,40 @@ const rowToUser = (obj) => ({
   fechaRegistro: obj["FechaRegistro"]||"",
 });
 
-// Escribe en una hoja específica de Sheets
-const postToSheets = async (sheetName, headers, rows) => {
+// ✅ UPSERT: agrega o actualiza UNA fila sin borrar las demás
+const upsertToSheets = async (sheetName, headers, row) => {
   try {
     await fetch(SHEETS_URL, {
-      method:"POST", mode:"no-cors",
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sheet: sheetName, headers, mode: "upsert", row }),
+    });
+  } catch(_) {}
+};
+
+// ✅ DELETE: elimina una fila por ID
+const deleteFromSheets = async (sheetName, id) => {
+  try {
+    await fetch(SHEETS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sheet: sheetName, mode: "delete", id: String(id) }),
+    });
+  } catch(_) {}
+};
+
+// ✅ SYNC COMPLETO: reemplaza toda la hoja (solo para sincronización manual del admin)
+const syncFullSheet = async (sheetName, headers, rows) => {
+  try {
+    await fetch(SHEETS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sheet: sheetName, headers, rows }),
     });
   } catch(_) {}
 };
 
-// Lee de una hoja específica de Sheets
+// ✅ GET: lee todos los datos de una hoja
 const getFromSheets = async (sheetName) => {
   try {
     const res = await fetch(`${SHEETS_URL}?sheet=${encodeURIComponent(sheetName)}&t=${Date.now()}`);
@@ -61,8 +84,12 @@ const getFromSheets = async (sheetName) => {
   return null;
 };
 
-const syncElectores = (electores) => postToSheets("BASE ELECTORAL", HEADERS_ELECTORES, electores.map(electorToRow));
-const syncUsuarios  = (users)    => postToSheets("USUARIOS", HEADERS_USUARIOS, users.filter(u=>u.role!=="admin").map(userToRow));
+const upsertElector  = (e)       => upsertToSheets("BASE ELECTORAL", HEADERS_ELECTORES, electorToRow(e));
+const deleteElector  = (id)      => deleteFromSheets("BASE ELECTORAL", id);
+const syncElectores  = (list)    => syncFullSheet("BASE ELECTORAL", HEADERS_ELECTORES, list.map(electorToRow));
+const syncUsuarios   = (users)   => upsertToSheets("USUARIOS", HEADERS_USUARIOS, null); // no-op placeholder
+const syncUsuariosFull = (users) => syncFullSheet("USUARIOS", HEADERS_USUARIOS, users.filter(u=>u.role!=="admin").map(userToRow));
+const upsertUsuario  = (u)       => upsertToSheets("USUARIOS", HEADERS_USUARIOS, userToRow(u));
 
 const DEFAULT_USERS = [
   { id: 1, username: "admin",  password: "admin123",  role: "admin",  nombre: "Administrador", email: "admin@redapoyo.com",  activo: true },
@@ -71,15 +98,15 @@ const DEFAULT_USERS = [
 ];
 
 const INITIAL_ELECTORES = [
-  { id: 1, nombre: "ANA GÓMEZ TORRES",  cedula: "1098765432", telefono: "3001234567", fechaNacimiento: "1985-03-15", direccion: "CRA 5 # 10-20", barrio: "LA ESTRELLA", comunaCorregimiento: "COMUNA 1",   genero: "FEMENINO",  lider: "CARLOS PÉREZ", puestoVotacion: "COLEGIO SAN LUIS",  mesaVotacion: "3",  intencion: "Si apoya", observaciones: "", lat: 4.4389, lng: -75.2322, fecha: "2024-01-10 09:30", usuarioRegistro: "carlos" },
-  { id: 2, nombre: "PEDRO MARTÍNEZ",    cedula: "1087654321", telefono: "3109876543", fechaNacimiento: "1978-07-22", direccion: "CLL 15 # 8-45",  barrio: "EL VERGEL",   comunaCorregimiento: "ZONA RURAL", genero: "MASCULINO", lider: "CARLOS PÉREZ", puestoVotacion: "ESCUELA EL CARMEN", mesaVotacion: "7",  intencion: "Indeciso",  observaciones: "SEGUIMIENTO PENDIENTE", lat: 4.4401, lng: -75.2301, fecha: "2024-01-11 11:15", usuarioRegistro: "carlos" },
-  { id: 3, nombre: "LUCÍA HERRERA DÍAZ",cedula: "1076543210", telefono: "3201122334", fechaNacimiento: "1992-11-08", direccion: "AV 3 # 22-10",   barrio: "CALAMBEO",    comunaCorregimiento: "COMUNA 8",   genero: "FEMENINO",  lider: "MARÍA LÓPEZ",  puestoVotacion: "INSTITUTO TÉCNICO", mesaVotacion: "12", intencion: "Si apoya",  observaciones: "", lat: 4.4450, lng: -75.2280, fecha: "2024-01-12 14:00", usuarioRegistro: "maria" },
+  { id: 1, nombre: "ANA GÓMEZ TORRES",   cedula: "1098765432", telefono: "3001234567", fechaNacimiento: "1985-03-15", direccion: "CRA 5 # 10-20", barrio: "LA ESTRELLA", comunaCorregimiento: "COMUNA 1",   genero: "FEMENINO",  lider: "CARLOS PÉREZ", puestoVotacion: "COLEGIO SAN LUIS",   mesaVotacion: "3",  intencion: "Si apoya",  observaciones: "", lat: 4.4389, lng: -75.2322, fecha: "2024-01-10 09:30", usuarioRegistro: "carlos" },
+  { id: 2, nombre: "PEDRO MARTÍNEZ",     cedula: "1087654321", telefono: "3109876543", fechaNacimiento: "1978-07-22", direccion: "CLL 15 # 8-45",  barrio: "EL VERGEL",   comunaCorregimiento: "ZONA RURAL", genero: "MASCULINO", lider: "CARLOS PÉREZ", puestoVotacion: "ESCUELA EL CARMEN",  mesaVotacion: "7",  intencion: "Indeciso",  observaciones: "SEGUIMIENTO PENDIENTE", lat: 4.4401, lng: -75.2301, fecha: "2024-01-11 11:15", usuarioRegistro: "carlos" },
+  { id: 3, nombre: "LUCÍA HERRERA DÍAZ", cedula: "1076543210", telefono: "3201122334", fechaNacimiento: "1992-11-08", direccion: "AV 3 # 22-10",   barrio: "CALAMBEO",    comunaCorregimiento: "COMUNA 8",   genero: "FEMENINO",  lider: "MARÍA LÓPEZ",  puestoVotacion: "INSTITUTO TÉCNICO",  mesaVotacion: "12", intencion: "Si apoya",  observaciones: "", lat: 4.4450, lng: -75.2280, fecha: "2024-01-12 14:00", usuarioRegistro: "maria" },
 ];
 
-const getUsers    = () => { try { const s=localStorage.getItem(STORAGE_KEY);   return s?JSON.parse(s):DEFAULT_USERS;    } catch { return DEFAULT_USERS; } };
-const saveUsers   = (u) => { try { localStorage.setItem(STORAGE_KEY,   JSON.stringify(u)); } catch {} };
-const getElectores= () => { try { const s=localStorage.getItem(ELECTORES_KEY); return s?JSON.parse(s):INITIAL_ELECTORES; } catch { return INITIAL_ELECTORES; } };
-const saveElectores=(e) => { try { localStorage.setItem(ELECTORES_KEY, JSON.stringify(e)); } catch {} };
+const getUsers     = () => { try { const s=localStorage.getItem(STORAGE_KEY);   return s?JSON.parse(s):DEFAULT_USERS;     } catch { return DEFAULT_USERS; } };
+const saveUsers    = (u) => { try { localStorage.setItem(STORAGE_KEY,   JSON.stringify(u)); } catch {} };
+const getElectores = () => { try { const s=localStorage.getItem(ELECTORES_KEY); return s?JSON.parse(s):INITIAL_ELECTORES; } catch { return INITIAL_ELECTORES; } };
+const saveElectores= (e) => { try { localStorage.setItem(ELECTORES_KEY, JSON.stringify(e)); } catch {} };
 
 const COMUNAS = ["COMUNA 1","COMUNA 2","COMUNA 3","COMUNA 4","COMUNA 5","COMUNA 6","COMUNA 7","COMUNA 8","COMUNA 9","COMUNA 10","COMUNA 11","COMUNA 12","COMUNA 13","ZONA RURAL"];
 
@@ -134,7 +161,14 @@ const exportExcel = (electores) => {
 // ===================== LOGIN =====================
 function LoginScreen({ onLogin, onGoRegister }) {
   const [user,setUser]=useState(""); const [pass,setPass]=useState(""); const [error,setError]=useState(""); const [loading,setLoading]=useState(false);
-  const handleLogin = () => { setLoading(true); setTimeout(() => { const users=getUsers(); const found=users.find(u=>u.username.toLowerCase()===user.toLowerCase()&&u.password===pass&&u.activo); if(found){onLogin(found);}else{setError("Usuario o contraseña incorrectos");setLoading(false);} },800); };
+  const handleLogin = () => {
+    setLoading(true);
+    setTimeout(() => {
+      const users=getUsers();
+      const found=users.find(u=>u.username.toLowerCase()===user.toLowerCase()&&u.password===pass&&u.activo);
+      if(found){onLogin(found);}else{setError("Usuario o contraseña incorrectos");setLoading(false);}
+    },800);
+  };
   return (
     <div style={{ ...styles.mobileFrame, display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", padding:"40px 24px" }}>
       <div style={{ width:90, height:90, borderRadius:"50%", background:"linear-gradient(135deg, #7C3AED, #EA580C)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:20, boxShadow:"0 8px 24px #7C3AED40" }}><span style={{ fontSize:40 }}>🗳️</span></div>
@@ -165,8 +199,11 @@ function RegisterUserScreen({ onBack, onSuccess }) {
     if(users.find(u=>u.username.toLowerCase()===form.username.toLowerCase())){setError("Ese usuario ya existe");return;}
     if(users.find(u=>u.email.toLowerCase()===form.email.toLowerCase())){setError("Ese correo ya está registrado");return;}
     const newUser={id:Date.now(),username:form.username.toLowerCase(),password:form.password,role:"lider",nombre:form.nombre.toUpperCase(),email:form.email.toLowerCase(),activo:true,fechaRegistro:new Date().toLocaleString("es-CO")};
-    const updated=[...users,newUser]; saveUsers(updated); syncUsuarios(updated);
-    setSuccess(true); setTimeout(()=>{onSuccess();},2000);
+    const updated=[...users,newUser];
+    saveUsers(updated);
+    upsertUsuario(newUser);
+    setSuccess(true);
+    setTimeout(()=>{onSuccess();},2000);
   };
   if(success) return (<div style={{ ...styles.mobileFrame, display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", padding:40 }}><div style={{ fontSize:60, marginBottom:16 }}>✅</div><h2 style={{ color:"#7C3AED", fontWeight:900, textAlign:"center" }}>¡Registro Exitoso!</h2><p style={{ color:"#6B7280", textAlign:"center" }}>Tu cuenta fue creada. Ya puedes iniciar sesión.</p></div>);
   return (
@@ -215,7 +252,17 @@ function RegistroScreen({ currentUser, electores, onSave, onBack }) {
   const update=(field,val)=>{setForm(f=>({...f,[field]:val}));setErrors(e=>({...e,[field]:""}));};
   const checkCedula=(ced)=>{if(ced.length>=6)setCedulaError(electores.find(e=>e.cedula===ced)?"⚠️ Esta cédula ya fue registrada":"");else setCedulaError("");};
   const validate=()=>{const e={};if(!form.nombre)e.nombre=true;if(!form.cedula)e.cedula=true;if(!form.telefono)e.telefono=true;if(!form.barrio)e.barrio=true;if(!form.comunaCorregimiento)e.comunaCorregimiento=true;if(!form.genero)e.genero=true;if(!form.intencion)e.intencion=true;return e;};
-  const handleSave=()=>{const e=validate();if(Object.keys(e).length>0){setErrors(e);return;}if(cedulaError)return;setSaving(true);setTimeout(()=>{onSave({...form,nombre:form.nombre.toUpperCase(),direccion:form.direccion.toUpperCase(),barrio:form.barrio.toUpperCase(),lider:form.lider.toUpperCase(),puestoVotacion:form.puestoVotacion.toUpperCase(),observaciones:form.observaciones.toUpperCase(),id:Date.now(),lat:4.4389+Math.random()*0.01,lng:-75.2322+Math.random()*0.01,fecha:new Date().toLocaleString("es-CO"),usuarioRegistro:currentUser.username});setSaving(false);setSaved(true);},1000);};
+  const handleSave=()=>{
+    const e=validate();
+    if(Object.keys(e).length>0){setErrors(e);return;}
+    if(cedulaError)return;
+    setSaving(true);
+    setTimeout(()=>{
+      const newElector={...form,nombre:form.nombre.toUpperCase(),direccion:form.direccion.toUpperCase(),barrio:form.barrio.toUpperCase(),lider:form.lider.toUpperCase(),puestoVotacion:form.puestoVotacion.toUpperCase(),observaciones:form.observaciones.toUpperCase(),id:Date.now(),lat:4.4389+Math.random()*0.01,lng:-75.2322+Math.random()*0.01,fecha:new Date().toLocaleString("es-CO"),usuarioRegistro:currentUser.username};
+      onSave(newElector);
+      setSaving(false);setSaved(true);
+    },1000);
+  };
   if(saved) return (<div style={{ ...styles.mobileFrame, display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", padding:40 }}><div style={{ fontSize:60, marginBottom:16 }}>✅</div><h2 style={{ color:"#7C3AED", fontWeight:900 }}>¡Elector Registrado!</h2><p style={{ color:"#6B7280", textAlign:"center" }}>Guardado y enviado a Google Sheets.</p><button style={{ ...styles.btnPrimary, marginTop:20, width:"auto", padding:"12px 30px" }} onClick={onBack}>Volver al Inicio</button></div>);
   return (
     <div>
@@ -352,11 +399,41 @@ function AdminScreen({ currentUser, electores, users, onBack, onUsersUpdate }) {
   const barrios=[...new Set(electores.map(e=>e.barrio))].map(b=>({barrio:b,count:electores.filter(e=>e.barrio===b).length})).sort((a,b)=>b.count-a.count);
   const comunas=[...new Set(electores.map(e=>e.comunaCorregimiento).filter(Boolean))].map(c=>({comuna:c,count:electores.filter(e=>e.comunaCorregimiento===c).length})).sort((a,b)=>b.count-a.count);
 
-  const handleSync=async()=>{setSyncing(true);setSheetsMsg("");try{await syncElectores(electores);await syncUsuarios(users);setSheetsMsg("✅ Electores y líderes sincronizados con Google Sheets.");}catch{setSheetsMsg("⚠️ Solicitud enviada. Revisa tu hoja.");}setSyncing(false);};
-  const toggleUser=(id)=>{const updated=users.map(u=>u.id===id?{...u,activo:!u.activo}:u);onUsersUpdate(updated);syncUsuarios(updated);};
-  const crearUsuario=()=>{setNewUserMsg("");if(!newUser.nombre||!newUser.email||!newUser.username||!newUser.password){setNewUserMsg("❌ Todos los campos son obligatorios");return;}if(newUser.password.length<6){setNewUserMsg("❌ Contraseña mínimo 6 caracteres");return;}if(users.find(u=>u.username.toLowerCase()===newUser.username.toLowerCase())){setNewUserMsg("❌ Ese usuario ya existe");return;}const nu={id:Date.now(),username:newUser.username.toLowerCase(),password:newUser.password,role:newUser.role,nombre:newUser.nombre.toUpperCase(),email:newUser.email.toLowerCase(),activo:true,fechaRegistro:new Date().toLocaleString("es-CO")};const updated=[...users,nu];onUsersUpdate(updated);syncUsuarios(updated);setNewUser({nombre:"",email:"",username:"",password:"",role:"lider"});setNewUserMsg("✅ Usuario creado exitosamente");setTimeout(()=>setNewUserMsg(""),3000);};
+  const handleSync=async()=>{
+    setSyncing(true);setSheetsMsg("");
+    try{
+      await syncElectores(electores);
+      await syncUsuariosFull(users);
+      setSheetsMsg("✅ Todo sincronizado correctamente con Google Sheets.");
+    }catch{
+      setSheetsMsg("⚠️ Solicitud enviada. Revisa tu hoja.");
+    }
+    setSyncing(false);
+  };
+
+  const toggleUser=(id)=>{const updated=users.map(u=>u.id===id?{...u,activo:!u.activo}:u);onUsersUpdate(updated);};
+  const crearUsuario=()=>{
+    setNewUserMsg("");
+    if(!newUser.nombre||!newUser.email||!newUser.username||!newUser.password){setNewUserMsg("❌ Todos los campos son obligatorios");return;}
+    if(newUser.password.length<6){setNewUserMsg("❌ Contraseña mínimo 6 caracteres");return;}
+    if(users.find(u=>u.username.toLowerCase()===newUser.username.toLowerCase())){setNewUserMsg("❌ Ese usuario ya existe");return;}
+    const nu={id:Date.now(),username:newUser.username.toLowerCase(),password:newUser.password,role:newUser.role,nombre:newUser.nombre.toUpperCase(),email:newUser.email.toLowerCase(),activo:true,fechaRegistro:new Date().toLocaleString("es-CO")};
+    const updated=[...users,nu];
+    onUsersUpdate(updated);
+    upsertUsuario(nu);
+    setNewUser({nombre:"",email:"",username:"",password:"",role:"lider"});
+    setNewUserMsg("✅ Usuario creado exitosamente");
+    setTimeout(()=>setNewUserMsg(""),3000);
+  };
   const startEdit=(u)=>{setEditingUser(u.id);setEditForm({nombre:u.nombre,email:u.email,username:u.username,newPassword:"",role:u.role});setEditError("");};
-  const saveEdit=()=>{if(!editForm.nombre||!editForm.email||!editForm.username){setEditError("Nombre, email y usuario son obligatorios");return;}const updated=users.map(u=>{if(u.id===editingUser){const c={...u,nombre:editForm.nombre.toUpperCase(),email:editForm.email.toLowerCase(),username:editForm.username.toLowerCase(),role:editForm.role};if(editForm.newPassword&&editForm.newPassword.length>=6)c.password=editForm.newPassword;return c;}return u;});onUsersUpdate(updated);syncUsuarios(updated);setEditingUser(null);};
+  const saveEdit=()=>{
+    if(!editForm.nombre||!editForm.email||!editForm.username){setEditError("Nombre, email y usuario son obligatorios");return;}
+    const updated=users.map(u=>{if(u.id===editingUser){const c={...u,nombre:editForm.nombre.toUpperCase(),email:editForm.email.toLowerCase(),username:editForm.username.toLowerCase(),role:editForm.role};if(editForm.newPassword&&editForm.newPassword.length>=6)c.password=editForm.newPassword;return c;}return u;});
+    onUsersUpdate(updated);
+    const editedUser=updated.find(u=>u.id===editingUser);
+    if(editedUser&&editedUser.role!=="admin") upsertUsuario(editedUser);
+    setEditingUser(null);
+  };
 
   if(editingUser) return (
     <div>
@@ -378,7 +455,7 @@ function AdminScreen({ currentUser, electores, users, onBack, onUsersUpdate }) {
     <div>
       <div style={styles.header}><button onClick={onBack} style={{ background:"none", border:"none", color:"#FFF", fontSize:22, cursor:"pointer" }}>←</button><div><h2 style={{ ...styles.headerTitle, fontSize:16 }}>Panel Administrador</h2><p style={styles.headerSub}>Control total del sistema</p></div></div>
       <div style={{ display:"flex", padding:"12px 16px 0", gap:4, background:"#F5F3FF" }}>
-        {[["stats","📊 Stats"],["lideres","👥 Líderes"],["sheets","📤 Sheets"],["usuarios","👤 Usuarios"],["mapa","🗺️ Mapa"]].map(([key,label])=>(<button key={key} style={styles.tab(tab===key)} onClick={()=>setTab(key)}>{label}</button>))}
+        {[["stats","📊"],["lideres","👥"],["sheets","📤"],["usuarios","👤"],["mapa","🗺️"]].map(([key,icon])=>(<button key={key} style={styles.tab(tab===key)} onClick={()=>setTab(key)}>{icon}</button>))}
       </div>
       <div style={styles.content}>
 
@@ -394,8 +471,7 @@ function AdminScreen({ currentUser, electores, users, onBack, onUsersUpdate }) {
 
         {tab==="lideres"&&<>
           <div style={{ background:"#EDE9FE", borderRadius:12, padding:12, marginBottom:14 }}>
-            <p style={{ margin:0, fontSize:13, color:"#5B21B6", fontWeight:700 }}>👥 LÍDERES REGISTRADOS — {lideres.length} en total</p>
-            <p style={{ margin:"4px 0 0", fontSize:12, color:"#5B21B6" }}>Líderes que se han registrado desde cualquier dispositivo.</p>
+            <p style={{ margin:0, fontSize:13, color:"#5B21B6", fontWeight:700 }}>👥 LÍDERES — {lideres.length} en total</p>
           </div>
           {lideres.length===0?<div style={{ textAlign:"center", padding:40, color:"#6B7280" }}><p>No hay líderes registrados aún</p></div>
           :lideres.map(u=>(
@@ -425,8 +501,8 @@ function AdminScreen({ currentUser, electores, users, onBack, onUsersUpdate }) {
           <div style={styles.card}>
             <h4 style={{ margin:"0 0 8px", fontSize:14, fontWeight:800, color:"#7C3AED" }}>📤 GOOGLE SHEETS</h4>
             <div style={{ background:"#D1FAE5", borderRadius:12, padding:12, marginBottom:14 }}>
-              <p style={{ margin:0, fontSize:13, color:"#065F46", fontWeight:700 }}>✅ Sheets conectado y activo</p>
-              <p style={{ margin:"4px 0 0", fontSize:12, color:"#065F46" }}>Cada registro nuevo se envía automáticamente. Tu hoja tendrá dos pestañas: <strong>BASE ELECTORAL</strong> y <strong>USUARIOS</strong>.</p>
+              <p style={{ margin:0, fontSize:13, color:"#065F46", fontWeight:700 }}>✅ Sincronización automática activa</p>
+              <p style={{ margin:"4px 0 0", fontSize:12, color:"#065F46" }}>Cada registro nuevo se envía a Sheets sin borrar los de otros líderes. Usa el botón solo si necesitas forzar una sincronización completa.</p>
             </div>
             {sheetsMsg&&<p style={{ fontSize:13, marginBottom:10, padding:"8px 12px", borderRadius:10, background:sheetsMsg.includes("✅")?"#D1FAE5":"#FEF3C7", color:sheetsMsg.includes("✅")?"#065F46":"#92400E" }}>{sheetsMsg}</p>}
             <button style={{ ...styles.btnPrimary, opacity:syncing?0.7:1 }} onClick={handleSync} disabled={syncing}>{syncing?"⏳ Sincronizando...":"🔄 Sincronizar todo con Sheets"}</button>
@@ -488,7 +564,7 @@ export default function App() {
   const [users,setUsers]=useState(getUsers());
   const [loading,setLoading]=useState(false);
 
-  // Al iniciar sesión → carga datos frescos de Sheets (electores + usuarios)
+  // Al iniciar sesión carga datos frescos de Sheets
   useEffect(()=>{
     if(currentUser){
       setLoading(true);
@@ -519,9 +595,10 @@ export default function App() {
   const handleLogin =(user)=>{ setCurrentUser(user); setScreen("inicio"); };
   const handleLogout=()=>{ setCurrentUser(null); setScreen("login"); };
 
-  const handleSaveElector  =(data)=>{ const u=[...electores,data];       setElectores(u); saveElectores(u); syncElectores(u); };
-  const handleEditElector  =(data)=>{ const u=electores.map(e=>e.id===data.id?data:e); setElectores(u); saveElectores(u); syncElectores(u); };
-  const handleDeleteElector=(id)  =>{ if(window.confirm("¿Eliminar este registro?")){ const u=electores.filter(e=>e.id!==id); setElectores(u); saveElectores(u); syncElectores(u); } };
+  // ✅ upsert: agrega sin borrar registros de otros líderes
+  const handleSaveElector  =(data)=>{ const u=[...electores,data]; setElectores(u); saveElectores(u); upsertElector(data); };
+  const handleEditElector  =(data)=>{ const u=electores.map(e=>e.id===data.id?data:e); setElectores(u); saveElectores(u); upsertElector(data); };
+  const handleDeleteElector=(id)  =>{ if(window.confirm("¿Eliminar este registro?")){ const u=electores.filter(e=>e.id!==id); setElectores(u); saveElectores(u); deleteElector(id); } };
   const handleUsersUpdate  =(upd) =>{ setUsers(upd); saveUsers(upd); };
 
   if(screen==="login")        return <LoginScreen onLogin={u=>{const fresh=users.find(x=>x.id===u.id)||u;handleLogin(fresh);}} onGoRegister={()=>setScreen("registerUser")} />;
