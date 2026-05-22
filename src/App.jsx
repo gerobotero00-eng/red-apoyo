@@ -514,6 +514,7 @@ function AdminScreen({ currentUser, electores, users, onBack, onUsersUpdate }) {
                   <p style={{ margin:0, fontSize:10, color:"#6B7280" }}>registros</p>
                   <button onClick={()=>startEdit(u)} style={{ background:"#EDE9FE", color:"#5B21B6", border:"none", borderRadius:10, padding:"5px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>✏️ Editar</button>
                   <button onClick={()=>toggleUser(u.id)} style={{ ...u.activo?styles.btnDanger:styles.btnSuccess, fontSize:11, padding:"5px 10px" }}>{u.activo?"Desactivar":"Activar"}</button>
+                  <button onClick={()=>{ if(window.confirm("¿Eliminar líder "+u.nombre+"? Sus registros se mantendrán.")){const upd=users.filter(x=>x.id!==u.id);onUsersUpdate(upd);syncUsuariosFull(upd);}}} style={{ background:"#FEE2E2", color:"#991B1B", border:"none", borderRadius:10, padding:"5px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>🗑️ Eliminar</button>
                 </div>
               </div>
             </div>
@@ -599,17 +600,22 @@ export default function App() {
           const parsed=sheetElectores.map(rowToElector);
           setElectores(parsed); saveElectores(parsed);
         }
+        // Siempre mergear: mantener admins locales + todos los lideres de Sheets
+        const localUsers=getUsers();
+        const admins=localUsers.filter(u=>u.role==="admin");
+        const merged=[...admins];
         if(sheetUsers&&sheetUsers.length>0){
-          const localUsers=getUsers();
-          const admins=localUsers.filter(u=>u.role==="admin");
           const sheetLideres=sheetUsers.map(rowToUser);
-          const merged=[...admins];
           sheetLideres.forEach(sl=>{
             if(!merged.find(u=>u.username===sl.username)) merged.push(sl);
             else{ const idx=merged.findIndex(u=>u.username===sl.username); if(merged[idx].role!=="admin") merged[idx]={...merged[idx],...sl,password:merged[idx].password}; }
           });
-          setUsers(merged); saveUsers(merged);
         }
+        // Tambien incluir lideres locales que no esten en Sheets aun
+        localUsers.filter(u=>u.role!=="admin").forEach(lu=>{
+          if(!merged.find(u=>u.username===lu.username)) merged.push(lu);
+        });
+        setUsers(merged); saveUsers(merged);
         setLoading(false);
       });
     }
