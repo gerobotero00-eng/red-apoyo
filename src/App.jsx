@@ -33,7 +33,7 @@ const userToRow = (u) => [String(u.id),u.username||"",u.nombre||"",u.email||"",u
 const rowToUser = (obj) => ({
   id: Number(obj["ID"])||Date.now(),
   username: obj["Username"]||"",
-  password: obj["Password"]||"lider123",
+  password: obj["Password"]||obj["Contraseña"]||"lider123",
   nombre: obj["Nombre"]||"",
   email: obj["Email"]||"",
   role: obj["Rol"]||"lider",
@@ -452,10 +452,22 @@ function AdminScreen({ currentUser, electores, users, onBack, onUsersUpdate }) {
   const startEdit=(u)=>{setEditingUser(u.id);setEditForm({nombre:u.nombre,email:u.email,username:u.username,newPassword:"",role:u.role});setEditError("");};
   const saveEdit=()=>{
     if(!editForm.nombre||!editForm.email||!editForm.username){setEditError("Nombre, email y usuario son obligatorios");return;}
-    const updated=users.map(u=>{if(u.id===editingUser){const c={...u,nombre:editForm.nombre.toUpperCase(),email:editForm.email.toLowerCase(),username:editForm.username.toLowerCase(),role:editForm.role};if(editForm.newPassword&&editForm.newPassword.length>=6)c.password=editForm.newPassword;return c;}return u;});
+    if(editForm.newPassword&&editForm.newPassword.length>0&&editForm.newPassword.length<6){setEditError("La contraseña debe tener mínimo 6 caracteres");return;}
+    const updated=users.map(u=>{
+      if(u.id===editingUser){
+        const c={...u,nombre:editForm.nombre.toUpperCase(),email:editForm.email.toLowerCase(),username:editForm.username.toLowerCase(),role:editForm.role};
+        if(editForm.newPassword&&editForm.newPassword.length>=6) c.password=editForm.newPassword;
+        return c;
+      }
+      return u;
+    });
     onUsersUpdate(updated);
     const editedUser=updated.find(u=>u.id===editingUser);
-    if(editedUser&&editedUser.role!=="admin") upsertUsuario(editedUser);
+    // Subir a Sheets incluyendo la nueva contraseña para que funcione en todos los dispositivos
+    if(editedUser&&editedUser.role!=="admin"){
+      const rowConPassword=[String(editedUser.id),editedUser.username||"",editedUser.nombre||"",editedUser.email||"",editedUser.role||"lider",String(editedUser.activo),editedUser.fechaRegistro||"",editedUser.password||""];
+      fetch(SHEETS_URL,{method:"POST",mode:"no-cors",body:JSON.stringify({sheet:"USUARIOS",headers:[...HEADERS_USUARIOS,"Password"],mode:"upsert",row:rowConPassword})});
+    }
     setEditingUser(null);
   };
 
