@@ -235,7 +235,7 @@ function RegisterUserScreen({ onBack, onSuccess }) {
 }
 
 // ===================== INICIO =====================
-function InicioScreen({ currentUser, electores, onNavigate }) {
+function InicioScreen({ currentUser, electores, onNavigate, onRecargar }) {
   const misRegistros = currentUser.role==="admin" ? electores.length : electores.filter(e=>e.usuarioRegistro===currentUser.username).length;
   return (
     <div>
@@ -254,6 +254,7 @@ function InicioScreen({ currentUser, electores, onNavigate }) {
         <button style={styles.btnPrimary}   onClick={()=>onNavigate("registro")}><span style={{ fontSize:20 }}>📝</span> Registrar Elector</button>
         <button style={styles.btnSecondary} onClick={()=>onNavigate("registros")}><span style={{ fontSize:20 }}>👥</span> Ver Registros</button>
         {currentUser.role==="admin"&&<button style={styles.btnOutline} onClick={()=>onNavigate("admin")}><span style={{ fontSize:20 }}>⚙️</span> Panel Administrador</button>}
+        <button style={{ ...styles.btnOutline, borderColor:"#059669", color:"#059669", marginTop:4 }} onClick={()=>onRecargar()}><span style={{ fontSize:20 }}>🔄</span> Recargar desde Sheets</button>
       </div>
     </div>
   );
@@ -622,6 +623,35 @@ export default function App() {
   },[currentUser]);
 
   const handleLogin =(user)=>{ setCurrentUser(user); setScreen("inicio"); };
+
+  const recargarDesdeSheets = async () => {
+    setLoading(true);
+    try {
+      const [sheetElectores, sheetUsers] = await Promise.all([
+        getFromSheets("BASE ELECTORAL"),
+        getFromSheets("USUARIOS"),
+      ]);
+      if(sheetElectores && sheetElectores.length > 0){
+        const parsed = sheetElectores.map(rowToElector);
+        setElectores(parsed); saveElectores(parsed);
+      }
+      const localUsers = getUsers();
+      const admins = localUsers.filter(u=>u.role==="admin");
+      const merged = [...admins];
+      if(sheetUsers && sheetUsers.length > 0){
+        const sheetLideres = sheetUsers.map(rowToUser);
+        sheetLideres.forEach(sl=>{
+          if(!merged.find(u=>u.username===sl.username)) merged.push(sl);
+          else{ const idx=merged.findIndex(u=>u.username===sl.username); if(merged[idx].role!=="admin") merged[idx]={...merged[idx],...sl,password:merged[idx].password}; }
+        });
+      }
+      localUsers.filter(u=>u.role!=="admin").forEach(lu=>{
+        if(!merged.find(u=>u.username===lu.username)) merged.push(lu);
+      });
+      setUsers(merged); saveUsers(merged);
+    } catch(_) {}
+    setLoading(false);
+  };
   const handleLogout=()=>{ setCurrentUser(null); setScreen("login"); };
 
   // ✅ upsert: agrega sin borrar registros de otros líderes
@@ -644,7 +674,7 @@ export default function App() {
 
   return (
     <div style={styles.mobileFrame}>
-      {screen==="inicio"    &&<InicioScreen    currentUser={currentUser} electores={electores} onNavigate={setScreen} />}
+      {screen==="inicio"    &&<InicioScreen    currentUser={currentUser} electores={electores} onNavigate={setScreen} onRecargar={recargarDesdeSheets} />}
       {screen==="registro"  &&<RegistroScreen  currentUser={currentUser} electores={electores} onSave={handleSaveElector}  onBack={()=>setScreen("inicio")} />}
       {screen==="registros" &&<RegistrosScreen currentUser={currentUser} electores={electores} onBack={()=>setScreen("inicio")} onDelete={handleDeleteElector} onEdit={handleEditElector} />}
       {screen==="admin"&&currentUser.role==="admin"&&<AdminScreen currentUser={currentUser} electores={electores} users={users} onBack={()=>setScreen("inicio")} onUsersUpdate={handleUsersUpdate} />}
